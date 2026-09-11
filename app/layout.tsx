@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import ServiceWorkerRegister from "./ServiceWorkerRegister";
 
 export const metadata: Metadata = {
   title: "Bright Future",
   description: "Bright Future investment application",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -13,7 +15,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ServiceWorkerRegister />
+        {children}
+      </body>
     </html>
   );
 }
