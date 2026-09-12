@@ -11,6 +11,12 @@ type Deposit = {
   created_at: string;
 };
 
+type WithdrawalMethod = {
+  method: string;
+  account_name: string;
+  account_number: string;
+};
+
 type Withdrawal = {
   id: string;
   user_id: string;
@@ -18,17 +24,12 @@ type Withdrawal = {
   status: string;
   created_at: string;
   withdrawal_method_id: string | null;
-  withdrawal_method?: {
-    method: string;
-    account_name: string;
-    account_number: string;
-  } | null;
+  withdrawal_method: WithdrawalMethod | null;
 };
 
 export default function AdminDashboard() {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
-
   const [loading, setLoading] = useState(true);
 
   const [approvingDepositId, setApprovingDepositId] =
@@ -45,6 +46,8 @@ export default function AdminDashboard() {
 
   async function checkAdminAndLoad() {
     try {
+      setLoading(true);
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -54,7 +57,6 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Check admin access
       const { data: admin, error: adminError } = await supabase
         .from("admin_users")
         .select("user_id")
@@ -74,7 +76,6 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Load deposits
       const { data: depositData, error: depositError } =
         await supabase
           .from("deposits")
@@ -88,7 +89,6 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Load withdrawals
       const { data: withdrawalData, error: withdrawalError } =
         await supabase
           .from("withdrawals")
@@ -118,10 +118,31 @@ export default function AdminDashboard() {
         return;
       }
 
+      const formattedWithdrawals: Withdrawal[] = (
+        withdrawalData || []
+      ).map((item: any) => {
+        let method: WithdrawalMethod | null = null;
+
+        if (Array.isArray(item.withdrawal_method)) {
+          method = item.withdrawal_method[0] || null;
+        } else if (item.withdrawal_method) {
+          method = item.withdrawal_method;
+        }
+
+        return {
+          id: item.id,
+          user_id: item.user_id,
+          amount: Number(item.amount),
+          status: item.status,
+          created_at: item.created_at,
+          withdrawal_method_id:
+            item.withdrawal_method_id,
+          withdrawal_method: method,
+        };
+      });
+
       setDeposits(depositData || []);
-      setWithdrawals(
-        (withdrawalData || []) as Withdrawal[]
-      );
+      setWithdrawals(formattedWithdrawals);
     } catch (error) {
       console.error("Admin dashboard error:", error);
       setMessage("Something went wrong.");
@@ -161,7 +182,10 @@ export default function AdminDashboard() {
         return;
       }
 
-      console.log("Deposit approval result:", data);
+      console.log(
+        "Deposit approval result:",
+        data
+      );
 
       setMessage(
         "Deposit approved successfully. Wallet balance updated."
@@ -179,7 +203,9 @@ export default function AdminDashboard() {
     setApprovingDepositId(null);
   }
 
-  async function approveWithdrawal(withdrawalId: string) {
+  async function approveWithdrawal(
+    withdrawalId: string
+  ) {
     const confirmed = window.confirm(
       "Are you sure you want to approve this withdrawal?"
     );
@@ -235,7 +261,9 @@ export default function AdminDashboard() {
     setProcessingWithdrawalId(null);
   }
 
-  async function rejectWithdrawal(withdrawalId: string) {
+  async function rejectWithdrawal(
+    withdrawalId: string
+  ) {
     const confirmed = window.confirm(
       "Are you sure you want to reject this withdrawal? The amount will be returned to the user's available balance."
     );
@@ -348,40 +376,33 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ========================= */}
-        {/* DEPOSIT REQUESTS */}
-        {/* ========================= */}
-
         <section className="mt-10">
-
           <h3 className="text-2xl font-bold">
             Deposit Requests
           </h3>
 
-          {!loading && deposits.length === 0 && (
-            <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-6 text-center">
-              <p className="text-slate-400">
-                No deposit requests found.
-              </p>
-            </div>
-          )}
+          {!loading &&
+            deposits.length === 0 && (
+              <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-6 text-center">
+                <p className="text-slate-400">
+                  No deposit requests found.
+                </p>
+              </div>
+            )}
 
           {!loading && deposits.length > 0 && (
             <div className="mt-5 space-y-4">
-
               {deposits.map((deposit) => (
                 <div
                   key={deposit.id}
                   className="rounded-2xl border border-white/10 bg-white/5 p-6"
                 >
-
                   <div className="grid gap-4 md:grid-cols-4">
 
                     <div>
                       <p className="text-sm text-slate-400">
                         User ID
                       </p>
-
                       <p className="mt-1 break-all text-sm">
                         {deposit.user_id}
                       </p>
@@ -391,7 +412,6 @@ export default function AdminDashboard() {
                       <p className="text-sm text-slate-400">
                         Amount
                       </p>
-
                       <p className="mt-1 text-2xl font-bold">
                         Rs.{" "}
                         {Number(
@@ -404,7 +424,6 @@ export default function AdminDashboard() {
                       <p className="text-sm text-slate-400">
                         Status
                       </p>
-
                       <p
                         className={`mt-1 font-bold uppercase ${getStatusClass(
                           deposit.status
@@ -418,7 +437,6 @@ export default function AdminDashboard() {
                       <p className="text-sm text-slate-400">
                         Date
                       </p>
-
                       <p className="mt-1 text-sm">
                         {new Date(
                           deposit.created_at
@@ -455,21 +473,13 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                   )}
-
                 </div>
               ))}
-
             </div>
           )}
-
         </section>
 
-        {/* ========================= */}
-        {/* WITHDRAWAL REQUESTS */}
-        {/* ========================= */}
-
         <section className="mt-12">
-
           <h3 className="text-2xl font-bold">
             Withdrawal Requests
           </h3>
@@ -486,7 +496,6 @@ export default function AdminDashboard() {
           {!loading &&
             withdrawals.length > 0 && (
               <div className="mt-5 space-y-4">
-
                 {withdrawals.map(
                   (withdrawal) => (
                     <div
@@ -500,7 +509,6 @@ export default function AdminDashboard() {
                           <p className="text-sm text-slate-400">
                             User ID
                           </p>
-
                           <p className="mt-1 break-all text-sm">
                             {withdrawal.user_id}
                           </p>
@@ -510,7 +518,6 @@ export default function AdminDashboard() {
                           <p className="text-sm text-slate-400">
                             Amount
                           </p>
-
                           <p className="mt-1 text-2xl font-bold">
                             Rs.{" "}
                             {Number(
@@ -523,7 +530,6 @@ export default function AdminDashboard() {
                           <p className="text-sm text-slate-400">
                             Status
                           </p>
-
                           <p
                             className={`mt-1 font-bold uppercase ${getStatusClass(
                               withdrawal.status
@@ -537,7 +543,6 @@ export default function AdminDashboard() {
                           <p className="text-sm text-slate-400">
                             Date
                           </p>
-
                           <p className="mt-1 text-sm">
                             {new Date(
                               withdrawal.created_at
@@ -546,8 +551,6 @@ export default function AdminDashboard() {
                         </div>
 
                       </div>
-
-                      {/* PAYMENT DETAILS */}
 
                       <div className="mt-6 rounded-xl border border-cyan-400/20 bg-cyan-400/5 p-5">
 
@@ -561,7 +564,6 @@ export default function AdminDashboard() {
                             <p className="text-sm text-slate-400">
                               Withdrawal Method
                             </p>
-
                             <p className="mt-1 font-bold">
                               {getMethodName(
                                 withdrawal
@@ -575,7 +577,6 @@ export default function AdminDashboard() {
                             <p className="text-sm text-slate-400">
                               Account Holder
                             </p>
-
                             <p className="mt-1 font-bold">
                               {withdrawal
                                 .withdrawal_method
@@ -588,7 +589,6 @@ export default function AdminDashboard() {
                             <p className="text-sm text-slate-400">
                               Account Number
                             </p>
-
                             <p className="mt-1 break-all font-bold">
                               {withdrawal
                                 .withdrawal_method
@@ -598,10 +598,7 @@ export default function AdminDashboard() {
                           </div>
 
                         </div>
-
                       </div>
-
-                      {/* APPROVE / REJECT */}
 
                       {withdrawal.status ===
                         "pending" && (
@@ -667,10 +664,8 @@ export default function AdminDashboard() {
                     </div>
                   )
                 )}
-
               </div>
             )}
-
         </section>
 
         <a
