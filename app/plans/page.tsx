@@ -4,48 +4,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 const plans = [
-  {
-    name: "G-1",
-    amount: 6000,
-    today: 200,
-    month: 6000,
-  },
-  {
-    name: "G-2",
-    amount: 9000,
-    today: 3000,
-    month: 90000,
-  },
-  {
-    name: "G-3",
-    amount: 12000,
-    today: 400,
-    month: 12000,
-  },
-  {
-    name: "G-4",
-    amount: 15000,
-    today: 500,
-    month: 15000,
-  },
-  {
-    name: "G-5",
-    amount: 30000,
-    today: 1000,
-    month: 300000,
-  },
-  {
-    name: "G-6",
-    amount: 50000,
-    today: 2000,
-    month: 60000,
-  },
-  {
-    name: "G-7",
-    amount: 80000,
-    today: 3000,
-    month: 90000,
-  },
+  { name: "G-1", amount: 6000, today: 200, month: 6000 },
+  { name: "G-2", amount: 9000, today: 300, month: 9000 },
+  { name: "G-3", amount: 12000, today: 400, month: 12000 },
+  { name: "G-4", amount: 15000, today: 500, month: 15000 },
+  { name: "G-5", amount: 30000, today: 1000, month: 300000 },
+  { name: "G-6", amount: 50000, today: 2000, month: 60000 },
+  { name: "G-7", amount: 80000, today: 3000, month: 90000 },
 ];
 
 export default function Plans() {
@@ -123,7 +88,6 @@ export default function Plans() {
 
   return (
     <main className="min-h-screen bg-slate-950 p-4 text-white md:p-6">
-
       <div className="mx-auto max-w-6xl">
 
         <h1 className="text-4xl font-bold">
@@ -135,9 +99,7 @@ export default function Plans() {
         </p>
 
         {/* ACTIVE PLAN */}
-
         <div className="mt-8">
-
           <h2 className="mb-4 text-2xl font-bold">
             Active Plan
           </h2>
@@ -148,14 +110,12 @@ export default function Plans() {
             </div>
           ) : active ? (
             <div className="rounded-2xl border border-cyan-400/30 bg-cyan-400/10 p-6">
-
               <div className="grid gap-5 md:grid-cols-4">
 
                 <div>
                   <p className="text-sm text-slate-400">
                     Plan
                   </p>
-
                   <p className="text-3xl font-bold text-cyan-400">
                     {active.name}
                   </p>
@@ -165,7 +125,6 @@ export default function Plans() {
                   <p className="text-sm text-slate-400">
                     Amount
                   </p>
-
                   <p className="text-xl font-bold">
                     Rs. {active.amount.toLocaleString()}
                   </p>
@@ -175,7 +134,6 @@ export default function Plans() {
                   <p className="text-sm text-slate-400">
                     Today Earning
                   </p>
-
                   <p className="text-xl font-bold text-green-400">
                     Rs. {active.today.toLocaleString()}
                   </p>
@@ -185,25 +143,21 @@ export default function Plans() {
                   <p className="text-sm text-slate-400">
                     Month Earning
                   </p>
-
                   <p className="text-xl font-bold text-green-400">
                     Rs. {active.month.toLocaleString()}
                   </p>
                 </div>
 
               </div>
-
             </div>
           ) : (
             <div className="rounded-xl bg-white/5 p-6 text-slate-400">
               No Active Plan
             </div>
           )}
-
         </div>
 
-        {/* PLANS TABLE */}
-
+        {/* AVAILABLE PLANS */}
         <div className="mt-10">
 
           <h2 className="mb-2 text-2xl font-bold">
@@ -219,31 +173,13 @@ export default function Plans() {
             <table className="w-full min-w-[700px]">
 
               <thead className="bg-cyan-500 text-left text-slate-950">
-
                 <tr>
-
-                  <th className="p-4">
-                    Plan
-                  </th>
-
-                  <th className="p-4">
-                    Amount
-                  </th>
-
-                  <th className="p-4">
-                    Today Earning
-                  </th>
-
-                  <th className="p-4">
-                    Month Earning
-                  </th>
-
-                  <th className="p-4">
-                    Action
-                  </th>
-
+                  <th className="p-4">Plan</th>
+                  <th className="p-4">Amount</th>
+                  <th className="p-4">Today Earning</th>
+                  <th className="p-4">Month Earning</th>
+                  <th className="p-4">Action</th>
                 </tr>
-
               </thead>
 
               <tbody>
@@ -298,29 +234,28 @@ export default function Plans() {
             </table>
 
           </div>
-
         </div>
 
         {/* MESSAGE */}
-
         {message !== "" && (
           <div className="mt-5 rounded-xl bg-cyan-400/10 p-4 text-center text-cyan-300">
             {message}
           </div>
         )}
 
-        {/* NOTICE */}
-
+        {/* INFORMATION */}
         <div className="mt-8 rounded-xl border border-yellow-400/20 bg-yellow-400/5 p-4 text-sm text-slate-300">
 
           <b className="text-yellow-400">
             Plan Information:
           </b>{" "}
-          Plan figures are displayed for account planning. This page does not
-          automatically add earnings to the wallet.
+
+          Plan figures are displayed for account planning.
+          This page does not automatically add earnings to the wallet.
 
         </div>
 
+        {/* BACK */}
         <a
           href="/dashboard"
           className="mt-8 inline-block rounded-lg bg-cyan-500 px-6 py-3 font-bold text-slate-950"
@@ -329,7 +264,6 @@ export default function Plans() {
         </a>
 
       </div>
-
     </main>
   );
 }
