@@ -1,20 +1,63 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function Deposit() {
   const [amount, setAmount] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  function handleDeposit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleDeposit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setMessage("");
 
-    if (amount === "") {
-      setMessage("Please enter an amount.");
+    const numericAmount = Number(amount);
+
+    if (!amount || numericAmount <= 0) {
+      setMessage("Please enter a valid amount.");
       return;
     }
 
-    setMessage("Demo deposit request submitted: Rs. " + amount);
+    setLoading(true);
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        setMessage("Please login first.");
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await supabase.from("deposits").insert({
+        user_id: user.id,
+        amount: numericAmount,
+        status: "pending",
+      });
+
+      if (error) {
+        console.error("Deposit error:", error);
+        setMessage("Deposit request failed. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      setMessage(
+        "Deposit request submitted successfully. Status: Pending"
+      );
+      setAmount("");
+    } catch (error) {
+      console.error(error);
+      setMessage("Something went wrong. Please try again.");
+    }
+
+    setLoading(false);
   }
 
   return (
@@ -28,11 +71,11 @@ export default function Deposit() {
         <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-8">
 
           <h2 className="text-3xl font-bold">
-            Demo Deposit
+            Deposit
           </h2>
 
           <p className="mt-2 text-slate-400">
-            Enter an amount for your demo account.
+            Enter the amount you want to deposit.
           </p>
 
           <form onSubmit={handleDeposit} className="mt-8">
@@ -52,9 +95,10 @@ export default function Deposit() {
 
             <button
               type="submit"
-              className="mt-5 w-full rounded-lg bg-green-500 px-6 py-3 font-bold text-slate-950"
+              disabled={loading}
+              className="mt-5 w-full rounded-lg bg-green-500 px-6 py-3 font-bold text-slate-950 disabled:opacity-50"
             >
-              Submit Demo Deposit
+              {loading ? "Submitting..." : "Submit Deposit Request"}
             </button>
 
           </form>
@@ -67,17 +111,17 @@ export default function Deposit() {
             </div>
           )}
 
-          <a
-            href="/dashboard"
-            className="mt-6 block text-center text-cyan-400"
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="mt-6 block w-full text-center text-cyan-400"
           >
             Back to Dashboard
-          </a>
+          </button>
 
         </div>
 
         <div className="mt-6 rounded-xl border border-cyan-400/20 bg-cyan-400/5 p-4 text-center text-sm text-slate-400">
-          Demo Mode - No real money is processed.
+          Deposit requests require approval before funds are credited.
         </div>
 
       </div>

@@ -1,23 +1,60 @@
 "use client";
 
 import { useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function SignupPage() {
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSignup(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSignup(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setMessage("");
 
     const form = e.currentTarget;
+
+    const name = (form.elements.namedItem("name") as HTMLInputElement).value;
+    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
     const password = (form.elements.namedItem("password") as HTMLInputElement).value;
-    const confirmPassword = (form.elements.namedItem("confirmPassword") as HTMLInputElement).value;
+    const confirmPassword = (
+      form.elements.namedItem("confirmPassword") as HTMLInputElement
+    ).value;
 
     if (password !== confirmPassword) {
       setMessage("Passwords do not match.");
       return;
     }
 
-    setMessage("Demo account created successfully!");
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+          },
+        },
+      });
+
+      console.log("SUPABASE DATA:", data);
+      console.log("SUPABASE ERROR:", error);
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      setMessage(
+        "Account created successfully. Please check your email to verify your account."
+      );
+    } catch (error) {
+      console.error("SIGNUP ERROR:", error);
+      setMessage("Failed to fetch. Please check your Supabase connection.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -30,11 +67,12 @@ export default function SignupPage() {
           </h1>
 
           <p className="mt-2 text-slate-400">
-            Create your demo account
+            Create your account
           </p>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8">
+
           <h2 className="mb-6 text-2xl font-bold">
             Sign Up
           </h2>
@@ -47,6 +85,7 @@ export default function SignupPage() {
               </label>
 
               <input
+                name="name"
                 type="text"
                 required
                 placeholder="Enter your name"
@@ -60,6 +99,7 @@ export default function SignupPage() {
               </label>
 
               <input
+                name="email"
                 type="email"
                 required
                 placeholder="Enter your email"
@@ -97,9 +137,10 @@ export default function SignupPage() {
 
             <button
               type="submit"
-              className="w-full rounded-lg bg-cyan-500 py-3 font-bold text-slate-950 hover:bg-cyan-400"
+              disabled={loading}
+              className="w-full rounded-lg bg-cyan-500 py-3 font-bold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
             >
-              Create Account
+              {loading ? "Creating Account..." : "Create Account"}
             </button>
 
           </form>
