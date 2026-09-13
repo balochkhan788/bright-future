@@ -272,6 +272,36 @@ export default function AdminDashboard() {
     setProcessingReward(null);
   }
 
+  async function creditReward(id: string) {
+    if (
+      !window.confirm(
+        "Credit this approved reward to user's wallet?"
+      )
+    ) {
+      return;
+    }
+
+    setProcessingReward(id);
+
+    const { error } = await supabase.rpc(
+      "credit_referral_reward_to_wallet",
+      {
+        p_reward_id: id,
+      }
+    );
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage(
+        "Referral reward credited to wallet successfully."
+      );
+      await loadAdmin();
+    }
+
+    setProcessingReward(null);
+  }
+
   function statusColor(status: string) {
     if (status === "approved") return "text-green-400";
     if (status === "rejected") return "text-red-400";
@@ -341,6 +371,7 @@ export default function AdminDashboard() {
                     <span className="text-slate-400">
                       Status:{" "}
                     </span>
+
                     <span
                       className={`font-bold ${statusColor(
                         reward.status
@@ -351,7 +382,9 @@ export default function AdminDashboard() {
                   </p>
 
                   <p className="mt-1 text-sm text-slate-400">
-                    {new Date(reward.created_at).toLocaleString()}
+                    {new Date(
+                      reward.created_at
+                    ).toLocaleString()}
                   </p>
 
                   {reward.description && (
@@ -362,6 +395,7 @@ export default function AdminDashboard() {
 
                   {reward.status === "pending" && (
                     <div className="mt-4">
+
                       <input
                         type="number"
                         min="1"
@@ -377,29 +411,59 @@ export default function AdminDashboard() {
                       />
 
                       <div className="mt-3 grid grid-cols-2 gap-3">
+
                         <button
-                          onClick={() => approveReward(reward.id)}
-                          disabled={processingReward === reward.id}
+                          onClick={() =>
+                            approveReward(reward.id)
+                          }
+                          disabled={
+                            processingReward === reward.id
+                          }
                           className="rounded-xl bg-green-500 p-3 font-bold text-black disabled:opacity-50"
                         >
                           Approve
                         </button>
 
                         <button
-                          onClick={() => rejectReward(reward.id)}
-                          disabled={processingReward === reward.id}
+                          onClick={() =>
+                            rejectReward(reward.id)
+                          }
+                          disabled={
+                            processingReward === reward.id
+                          }
                           className="rounded-xl bg-red-500 p-3 font-bold disabled:opacity-50"
                         >
                           Reject
                         </button>
+
                       </div>
                     </div>
                   )}
 
                   {reward.status === "approved" && (
-                    <div className="mt-4 rounded-xl bg-green-500/10 p-3 text-green-400">
-                      Approved: Rs.{" "}
-                      {Number(reward.amount).toLocaleString()}
+                    <div className="mt-4">
+
+                      <div className="rounded-xl bg-green-500/10 p-3 text-green-400">
+                        Approved: Rs.{" "}
+                        {Number(
+                          reward.amount
+                        ).toLocaleString()}
+                      </div>
+
+                      <button
+                        onClick={() =>
+                          creditReward(reward.id)
+                        }
+                        disabled={
+                          processingReward === reward.id
+                        }
+                        className="mt-3 w-full rounded-xl bg-cyan-400 p-3 font-bold text-black disabled:opacity-50"
+                      >
+                        {processingReward === reward.id
+                          ? "Processing..."
+                          : "Credit to Wallet"}
+                      </button>
+
                     </div>
                   )}
                 </div>
@@ -435,7 +499,10 @@ export default function AdminDashboard() {
                   </p>
 
                   <p className="mt-3 text-2xl font-bold">
-                    Rs. {Number(deposit.amount).toLocaleString()}
+                    Rs.{" "}
+                    {Number(
+                      deposit.amount
+                    ).toLocaleString()}
                   </p>
 
                   <p className="mt-1">
@@ -450,13 +517,19 @@ export default function AdminDashboard() {
                   </p>
 
                   <p className="mt-1 text-sm text-slate-400">
-                    {new Date(deposit.created_at).toLocaleString()}
+                    {new Date(
+                      deposit.created_at
+                    ).toLocaleString()}
                   </p>
 
                   {deposit.status === "pending" && (
                     <button
-                      onClick={() => approveDeposit(deposit.id)}
-                      disabled={processingDeposit === deposit.id}
+                      onClick={() =>
+                        approveDeposit(deposit.id)
+                      }
+                      disabled={
+                        processingDeposit === deposit.id
+                      }
                       className="mt-4 w-full rounded-xl bg-green-500 p-3 font-bold text-black disabled:opacity-50"
                     >
                       {processingDeposit === deposit.id
@@ -498,7 +571,9 @@ export default function AdminDashboard() {
 
                   <p className="mt-3 text-2xl font-bold">
                     Rs.{" "}
-                    {Number(withdrawal.amount).toLocaleString()}
+                    {Number(
+                      withdrawal.amount
+                    ).toLocaleString()}
                   </p>
 
                   <p className="mt-1">
@@ -520,10 +595,14 @@ export default function AdminDashboard() {
 
                   {withdrawal.withdrawal_method && (
                     <div className="mt-4 rounded-xl bg-black/20 p-4">
+
                       <p>
                         Method:{" "}
                         <b>
-                          {withdrawal.withdrawal_method.method}
+                          {
+                            withdrawal.withdrawal_method
+                              .method
+                          }
                         </b>
                       </p>
 
@@ -546,17 +625,22 @@ export default function AdminDashboard() {
                           }
                         </b>
                       </p>
+
                     </div>
                   )}
 
                   {withdrawal.status === "pending" && (
                     <div className="mt-4 grid grid-cols-2 gap-3">
+
                       <button
                         onClick={() =>
-                          approveWithdrawal(withdrawal.id)
+                          approveWithdrawal(
+                            withdrawal.id
+                          )
                         }
                         disabled={
-                          processingWithdrawal === withdrawal.id
+                          processingWithdrawal ===
+                          withdrawal.id
                         }
                         className="rounded-xl bg-green-500 p-3 font-bold text-black disabled:opacity-50"
                       >
@@ -565,15 +649,19 @@ export default function AdminDashboard() {
 
                       <button
                         onClick={() =>
-                          rejectWithdrawal(withdrawal.id)
+                          rejectWithdrawal(
+                            withdrawal.id
+                          )
                         }
                         disabled={
-                          processingWithdrawal === withdrawal.id
+                          processingWithdrawal ===
+                          withdrawal.id
                         }
                         className="rounded-xl bg-red-500 p-3 font-bold disabled:opacity-50"
                       >
                         Reject
                       </button>
+
                     </div>
                   )}
                 </div>
