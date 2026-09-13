@@ -320,6 +320,15 @@ export default function AdminDashboard() {
           <h2 className="mt-2 text-xl font-bold">
             Admin Dashboard
           </h2>
+
+          <button
+            onClick={() => {
+              window.location.href = "/admin/support";
+            }}
+            className="mt-5 w-full rounded-xl bg-cyan-500 p-4 font-bold text-slate-950"
+          >
+            💬 Support Messages
+          </button>
         </div>
 
         {loading && (
