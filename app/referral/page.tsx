@@ -20,7 +20,10 @@ export default function ReferralPage() {
   const [levelCounts, setLevelCounts] = useState<number[]>(
     [0, 0, 0, 0, 0, 0, 0]
   );
+
   const [loading, setLoading] = useState(true);
+  const [requestingReward, setRequestingReward] = useState(false);
+  const [message, setMessage] = useState("");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -49,11 +52,7 @@ export default function ReferralPage() {
 
       setReferralCode(code);
 
-      // Total referrals
-      const {
-        count,
-        error: referralError,
-      } = await supabase
+      const { count, error: referralError } = await supabase
         .from("referrals")
         .select("id", {
           count: "exact",
@@ -62,28 +61,18 @@ export default function ReferralPage() {
         .eq("referrer_id", user.id);
 
       if (referralError) {
-        console.log(
-          "Referral count error:",
-          referralError
-        );
+        console.log("Referral count error:", referralError);
       }
 
       setReferralCount(count || 0);
 
-      // G-1 to G-7 counts
-      const {
-        data: levelData,
-        error: levelError,
-      } = await supabase
+      const { data: levelData, error: levelError } = await supabase
         .from("referrals")
         .select("level")
         .eq("referrer_id", user.id);
 
       if (levelError) {
-        console.log(
-          "Referral level error:",
-          levelError
-        );
+        console.log("Referral level error:", levelError);
       }
 
       const counts = [0, 0, 0, 0, 0, 0, 0];
@@ -100,11 +89,7 @@ export default function ReferralPage() {
 
       setLevelCounts(counts);
 
-      // Referral rewards
-      const {
-        data: rewardData,
-        error: rewardError,
-      } = await supabase
+      const { data: rewardData, error: rewardError } = await supabase
         .from("referral_rewards")
         .select("*")
         .eq("user_id", user.id)
@@ -113,10 +98,7 @@ export default function ReferralPage() {
         });
 
       if (rewardError) {
-        console.log(
-          "Referral rewards error:",
-          rewardError
-        );
+        console.log("Referral rewards error:", rewardError);
       }
 
       const list = (rewardData || []) as Reward[];
@@ -124,21 +106,15 @@ export default function ReferralPage() {
       setRewards(list);
 
       const total = list
-        .filter(
-          (item) => item.status === "approved"
-        )
+        .filter((item) => item.status === "approved")
         .reduce(
-          (sum, item) =>
-            sum + Number(item.amount || 0),
+          (sum, item) => sum + Number(item.amount || 0),
           0
         );
 
       setAvailableBonus(total);
     } catch (error) {
-      console.error(
-        "Referral page error:",
-        error
-      );
+      console.error("Referral page error:", error);
     } finally {
       setLoading(false);
     }
@@ -172,6 +148,43 @@ export default function ReferralPage() {
     }
   }
 
+  async function requestPromotionalReward() {
+    if (requestingReward) return;
+
+    setRequestingReward(true);
+    setMessage("");
+
+    try {
+      const { data, error } = await supabase.rpc(
+        "create_referral_reward_request",
+        {
+          p_reward_type: "Promotional Reward",
+          p_description:
+            "Promotional reward request submitted by user.",
+        }
+      );
+
+      if (error) {
+        console.error(error);
+        setMessage(error.message);
+        return;
+      }
+
+      if (data) {
+        setMessage(
+          "Reward request submit ho gayi hai. Admin approval ke baad amount show hoga."
+        );
+
+        await loadData();
+      }
+    } catch (error) {
+      console.error(error);
+      setMessage("Reward request submit nahi ho saki.");
+    } finally {
+      setRequestingReward(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -184,7 +197,6 @@ export default function ReferralPage() {
     <main className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-md mx-auto space-y-4">
 
-        {/* Header */}
         <div className="bg-white rounded-2xl shadow p-5">
           <h1 className="text-2xl font-bold">
             Referral Center
@@ -195,7 +207,12 @@ export default function ReferralPage() {
           </p>
         </div>
 
-        {/* Referral Code */}
+        {message && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-700 rounded-2xl p-4 text-sm">
+            {message}
+          </div>
+        )}
+
         <div className="bg-white rounded-2xl shadow p-5">
           <p className="text-sm text-gray-500">
             Your Referral Code
@@ -219,7 +236,6 @@ export default function ReferralPage() {
           </p>
         </div>
 
-        {/* Main Stats */}
         <div className="grid grid-cols-2 gap-4">
 
           <div className="bg-white rounded-2xl shadow p-5">
@@ -244,8 +260,30 @@ export default function ReferralPage() {
 
         </div>
 
-        {/* Referral Levels */}
         <div className="bg-white rounded-2xl shadow p-5">
+
+          <h2 className="text-lg font-bold mb-3">
+            Promotional Reward
+          </h2>
+
+          <p className="text-sm text-gray-500 mb-4">
+            Reward request Admin approval ke liye submit karein.
+          </p>
+
+          <button
+            onClick={requestPromotionalReward}
+            disabled={requestingReward}
+            className="w-full bg-pink-600 text-white py-4 rounded-2xl font-bold disabled:opacity-50"
+          >
+            {requestingReward
+              ? "Submitting..."
+              : "Request Promotional Reward"}
+          </button>
+
+        </div>
+
+        <div className="bg-white rounded-2xl shadow p-5">
+
           <h2 className="text-lg font-bold mb-4">
             Referral Levels
           </h2>
@@ -274,8 +312,8 @@ export default function ReferralPage() {
           </div>
         </div>
 
-        {/* Reward History */}
         <div className="bg-white rounded-2xl shadow p-5">
+
           <h2 className="text-lg font-bold mb-4">
             Reward History
           </h2>
@@ -294,6 +332,7 @@ export default function ReferralPage() {
                 >
 
                   <div className="flex justify-between">
+
                     <span className="font-semibold">
                       {reward.reward_type}
                     </span>
@@ -304,6 +343,7 @@ export default function ReferralPage() {
                         reward.amount
                       ).toLocaleString()}
                     </span>
+
                   </div>
 
                   {reward.description && (
@@ -313,6 +353,7 @@ export default function ReferralPage() {
                   )}
 
                   <div className="flex justify-between text-xs mt-2">
+
                     <span>
                       {new Date(
                         reward.created_at
@@ -322,6 +363,7 @@ export default function ReferralPage() {
                     <span>
                       {reward.status}
                     </span>
+
                   </div>
 
                 </div>
@@ -329,24 +371,21 @@ export default function ReferralPage() {
 
             </div>
           )}
+
         </div>
 
-        {/* Spin Wheel */}
         <button
           onClick={() => {
-            window.location.href =
-              "/spin-wheel";
+            window.location.href = "/spin-wheel";
           }}
           className="w-full bg-purple-600 text-white py-4 rounded-2xl font-bold"
         >
           🎡 Promotional Spin Wheel
         </button>
 
-        {/* Dashboard */}
         <button
           onClick={() => {
-            window.location.href =
-              "/dashboard";
+            window.location.href = "/dashboard";
           }}
           className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold"
         >
