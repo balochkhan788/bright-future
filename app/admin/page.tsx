@@ -27,27 +27,51 @@ type Withdrawal = {
   withdrawal_method: WithdrawalMethod | null;
 };
 
+type ReferralReward = {
+  id: string;
+  user_id: string;
+  reward_type: string;
+  amount: number;
+  description: string | null;
+  status: string;
+  created_at: string;
+};
+
 export default function AdminDashboard() {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [referralRewards, setReferralRewards] = useState<ReferralReward[]>(
+    []
+  );
+
   const [loading, setLoading] = useState(true);
-
-  const [approvingDepositId, setApprovingDepositId] =
-    useState<string | null>(null);
-
-  const [processingWithdrawalId, setProcessingWithdrawalId] =
-    useState<string | null>(null);
-
   const [message, setMessage] = useState("");
 
+  const [processingDeposit, setProcessingDeposit] = useState<string | null>(
+    null
+  );
+
+  const [processingWithdrawal, setProcessingWithdrawal] = useState<
+    string | null
+  >(null);
+
+  const [processingReward, setProcessingReward] = useState<string | null>(
+    null
+  );
+
+  const [rewardAmounts, setRewardAmounts] = useState<
+    Record<string, string>
+  >({});
+
   useEffect(() => {
-    checkAdminAndLoad();
+    loadAdmin();
   }, []);
 
-  async function checkAdminAndLoad() {
-    try {
-      setLoading(true);
+  async function loadAdmin() {
+    setLoading(true);
+    setMessage("");
 
+    try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -63,36 +87,25 @@ export default function AdminDashboard() {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (adminError) {
-        console.error("Admin check error:", adminError);
-        setMessage("Unable to verify admin access.");
-        setLoading(false);
-        return;
-      }
-
-      if (!admin) {
+      if (adminError || !admin) {
         setMessage("Access denied. Admin only.");
-        setLoading(false);
         return;
       }
 
-      const { data: depositData, error: depositError } =
-        await supabase
-          .from("deposits")
-          .select("id, user_id, amount, status, created_at")
-          .order("created_at", { ascending: false });
+      const { data: depositData, error: depositError } = await supabase
+        .from("deposits")
+        .select("id, user_id, amount, status, created_at")
+        .order("created_at", { ascending: false });
 
       if (depositError) {
-        console.error("Deposit error:", depositError);
-        setMessage("Unable to load deposits.");
-        setLoading(false);
-        return;
+        console.error(depositError);
       }
 
       const { data: withdrawalData, error: withdrawalError } =
         await supabase
           .from("withdrawals")
-          .select(`
+          .select(
+            `
             id,
             user_id,
             amount,
@@ -104,373 +117,289 @@ export default function AdminDashboard() {
               account_name,
               account_number
             )
-          `)
+          `
+          )
           .order("created_at", { ascending: false });
 
       if (withdrawalError) {
-        console.error(
-          "Withdrawal error:",
-          withdrawalError
-        );
-
-        setMessage("Unable to load withdrawals.");
-        setLoading(false);
-        return;
+        console.error(withdrawalError);
       }
 
       const formattedWithdrawals: Withdrawal[] = (
         withdrawalData || []
-      ).map((item: any) => {
-        let method: WithdrawalMethod | null = null;
+      ).map((item: any) => ({
+        id: item.id,
+        user_id: item.user_id,
+        amount: Number(item.amount || 0),
+        status: item.status,
+        created_at: item.created_at,
+        withdrawal_method_id: item.withdrawal_method_id,
+        withdrawal_method: Array.isArray(item.withdrawal_method)
+          ? item.withdrawal_method[0] || null
+          : item.withdrawal_method || null,
+      }));
 
-        if (Array.isArray(item.withdrawal_method)) {
-          method = item.withdrawal_method[0] || null;
-        } else if (item.withdrawal_method) {
-          method = item.withdrawal_method;
-        }
+      const { data: rewardData, error: rewardError } = await supabase
+        .from("referral_rewards")
+        .select(
+          "id, user_id, reward_type, amount, description, status, created_at"
+        )
+        .order("created_at", { ascending: false });
 
-        return {
-          id: item.id,
-          user_id: item.user_id,
-          amount: Number(item.amount),
-          status: item.status,
-          created_at: item.created_at,
-          withdrawal_method_id:
-            item.withdrawal_method_id,
-          withdrawal_method: method,
-        };
-      });
+      if (rewardError) {
+        console.error(rewardError);
+      }
 
-      setDeposits(depositData || []);
+      setDeposits((depositData || []) as Deposit[]);
       setWithdrawals(formattedWithdrawals);
+      setReferralRewards((rewardData || []) as ReferralReward[]);
     } catch (error) {
-      console.error("Admin dashboard error:", error);
+      console.error(error);
       setMessage("Something went wrong.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
-  async function approveDeposit(depositId: string) {
-    const confirmed = window.confirm(
-      "Are you sure you want to approve this deposit?"
-    );
+  async function approveDeposit(id: string) {
+    if (!window.confirm("Approve this deposit?")) return;
 
-    if (!confirmed) {
+    setProcessingDeposit(id);
+
+    const { error } = await supabase.rpc("approve_deposit", {
+      p_deposit_id: id,
+    });
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage("Deposit approved successfully.");
+      await loadAdmin();
+    }
+
+    setProcessingDeposit(null);
+  }
+
+  async function approveWithdrawal(id: string) {
+    if (!window.confirm("Approve this withdrawal?")) return;
+
+    setProcessingWithdrawal(id);
+
+    const { error } = await supabase.rpc("approve_withdrawal", {
+      p_withdrawal_id: id,
+    });
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage("Withdrawal approved successfully.");
+      await loadAdmin();
+    }
+
+    setProcessingWithdrawal(null);
+  }
+
+  async function rejectWithdrawal(id: string) {
+    if (!window.confirm("Reject this withdrawal?")) return;
+
+    setProcessingWithdrawal(id);
+
+    const { error } = await supabase.rpc("reject_withdrawal", {
+      p_withdrawal_id: id,
+    });
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage("Withdrawal rejected.");
+      await loadAdmin();
+    }
+
+    setProcessingWithdrawal(null);
+  }
+
+  async function approveReward(id: string) {
+    const amount = Number(rewardAmounts[id] || 0);
+
+    if (amount <= 0) {
+      setMessage("Enter reward amount first.");
       return;
     }
 
-    setApprovingDepositId(depositId);
-    setMessage("");
+    if (!window.confirm("Approve this promotional reward?")) return;
 
-    try {
-      const { data, error } = await supabase.rpc(
-        "approve_deposit",
-        {
-          p_deposit_id: depositId,
-        }
-      );
+    setProcessingReward(id);
 
-      if (error) {
-        console.error("Approval error:", error);
+    const { error } = await supabase
+      .from("referral_rewards")
+      .update({
+        amount: amount,
+        status: "approved",
+      })
+      .eq("id", id)
+      .eq("status", "pending");
 
-        setMessage(
-          "Deposit approval failed. Please try again."
-        );
-
-        setApprovingDepositId(null);
-        return;
-      }
-
-      console.log(
-        "Deposit approval result:",
-        data
-      );
-
-      setMessage(
-        "Deposit approved successfully. Wallet balance updated."
-      );
-
-      await checkAdminAndLoad();
-    } catch (error) {
-      console.error("Approval error:", error);
-
-      setMessage(
-        "Something went wrong while approving the deposit."
-      );
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage("Referral reward approved.");
+      await loadAdmin();
     }
 
-    setApprovingDepositId(null);
+    setProcessingReward(null);
   }
 
-  async function approveWithdrawal(
-    withdrawalId: string
-  ) {
-    const confirmed = window.confirm(
-      "Are you sure you want to approve this withdrawal?"
-    );
+  async function rejectReward(id: string) {
+    if (!window.confirm("Reject this promotional reward?")) return;
 
-    if (!confirmed) {
-      return;
+    setProcessingReward(id);
+
+    const { error } = await supabase
+      .from("referral_rewards")
+      .update({
+        status: "rejected",
+      })
+      .eq("id", id)
+      .eq("status", "pending");
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage("Referral reward rejected.");
+      await loadAdmin();
     }
 
-    setProcessingWithdrawalId(withdrawalId);
-    setMessage("");
-
-    try {
-      const { data, error } = await supabase.rpc(
-        "approve_withdrawal",
-        {
-          p_withdrawal_id: withdrawalId,
-        }
-      );
-
-      if (error) {
-        console.error(
-          "Withdrawal approval error:",
-          error
-        );
-
-        setMessage(
-          error.message ||
-            "Withdrawal approval failed."
-        );
-
-        setProcessingWithdrawalId(null);
-        return;
-      }
-
-      console.log(
-        "Withdrawal approval result:",
-        data
-      );
-
-      setMessage(
-        "Withdrawal approved successfully."
-      );
-
-      await checkAdminAndLoad();
-    } catch (error) {
-      console.error(error);
-
-      setMessage(
-        "Something went wrong while approving withdrawal."
-      );
-    }
-
-    setProcessingWithdrawalId(null);
+    setProcessingReward(null);
   }
 
-  async function rejectWithdrawal(
-    withdrawalId: string
-  ) {
-    const confirmed = window.confirm(
-      "Are you sure you want to reject this withdrawal? The amount will be returned to the user's available balance."
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setProcessingWithdrawalId(withdrawalId);
-    setMessage("");
-
-    try {
-      const { data, error } = await supabase.rpc(
-        "reject_withdrawal",
-        {
-          p_withdrawal_id: withdrawalId,
-        }
-      );
-
-      if (error) {
-        console.error(
-          "Withdrawal rejection error:",
-          error
-        );
-
-        setMessage(
-          error.message ||
-            "Withdrawal rejection failed."
-        );
-
-        setProcessingWithdrawalId(null);
-        return;
-      }
-
-      console.log(
-        "Withdrawal rejection result:",
-        data
-      );
-
-      setMessage(
-        "Withdrawal rejected. Amount returned to wallet."
-      );
-
-      await checkAdminAndLoad();
-    } catch (error) {
-      console.error(error);
-
-      setMessage(
-        "Something went wrong while rejecting withdrawal."
-      );
-    }
-
-    setProcessingWithdrawalId(null);
-  }
-
-  function getStatusClass(status: string) {
-    if (status === "approved") {
-      return "text-green-400";
-    }
-
-    if (status === "rejected") {
-      return "text-red-400";
-    }
-
+  function statusColor(status: string) {
+    if (status === "approved") return "text-green-400";
+    if (status === "rejected") return "text-red-400";
     return "text-yellow-400";
   }
 
-  function getMethodName(method?: string) {
-    if (method === "easypaisa") {
-      return "Easypaisa";
-    }
-
-    if (method === "jazzcash") {
-      return "JazzCash";
-    }
-
-    if (method === "bank") {
-      return "Bank Account";
-    }
-
-    return method || "Not available";
-  }
-
   return (
-    <main className="min-h-screen bg-slate-950 p-6 text-white">
+    <main className="min-h-screen bg-slate-950 p-5 text-white">
       <div className="mx-auto max-w-6xl">
 
-        <h1 className="text-4xl font-bold">
-          Bright{" "}
-          <span className="text-cyan-400">
-            Future
-          </span>
-        </h1>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">
+            Bright <span className="text-cyan-400">Future</span>
+          </h1>
 
-        <h2 className="mt-3 text-2xl font-bold">
-          Admin Dashboard
-        </h2>
+          <h2 className="mt-2 text-xl font-bold">
+            Admin Dashboard
+          </h2>
+        </div>
 
         {loading && (
-          <p className="mt-8 text-center text-slate-400">
-            Checking admin access...
-          </p>
-        )}
-
-        {!loading && message && (
-          <div className="mt-8 rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-5 text-center">
-            <p className="font-bold text-cyan-400">
-              {message}
-            </p>
+          <div className="rounded-xl bg-white/5 p-5 text-center">
+            Loading admin data...
           </div>
         )}
 
-        <section className="mt-10">
-          <h3 className="text-2xl font-bold">
-            Deposit Requests
-          </h3>
+        {!loading && message && (
+          <div className="mb-6 rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-4 text-center text-cyan-300">
+            {message}
+          </div>
+        )}
 
-          {!loading &&
-            deposits.length === 0 && (
-              <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-6 text-center">
-                <p className="text-slate-400">
-                  No deposit requests found.
-                </p>
-              </div>
-            )}
+        {/* REFERRAL REWARDS */}
 
-          {!loading && deposits.length > 0 && (
-            <div className="mt-5 space-y-4">
-              {deposits.map((deposit) => (
+        <section className="mb-10">
+          <h2 className="mb-4 text-2xl font-bold">
+            🎁 Referral Reward Requests
+          </h2>
+
+          {referralRewards.length === 0 ? (
+            <div className="rounded-xl bg-white/5 p-5 text-slate-400">
+              No referral reward requests.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {referralRewards.map((reward) => (
                 <div
-                  key={deposit.id}
-                  className="rounded-2xl border border-white/10 bg-white/5 p-6"
+                  key={reward.id}
+                  className="rounded-2xl border border-purple-400/20 bg-purple-400/5 p-5"
                 >
-                  <div className="grid gap-4 md:grid-cols-4">
+                  <p className="text-sm text-slate-400">
+                    User ID
+                  </p>
 
-                    <div>
-                      <p className="text-sm text-slate-400">
-                        User ID
-                      </p>
-                      <p className="mt-1 break-all text-sm">
-                        {deposit.user_id}
-                      </p>
-                    </div>
+                  <p className="mb-3 break-all text-xs">
+                    {reward.user_id}
+                  </p>
 
-                    <div>
-                      <p className="text-sm text-slate-400">
-                        Amount
-                      </p>
-                      <p className="mt-1 text-2xl font-bold">
-                        Rs.{" "}
-                        {Number(
-                          deposit.amount
-                        ).toLocaleString()}
-                      </p>
-                    </div>
+                  <p>
+                    <span className="text-slate-400">
+                      Type:{" "}
+                    </span>
+                    {reward.reward_type}
+                  </p>
 
-                    <div>
-                      <p className="text-sm text-slate-400">
-                        Status
-                      </p>
-                      <p
-                        className={`mt-1 font-bold uppercase ${getStatusClass(
-                          deposit.status
-                        )}`}
-                      >
-                        {deposit.status}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-slate-400">
-                        Date
-                      </p>
-                      <p className="mt-1 text-sm">
-                        {new Date(
-                          deposit.created_at
-                        ).toLocaleString()}
-                      </p>
-                    </div>
-
-                  </div>
-
-                  {deposit.status === "pending" && (
-                    <button
-                      onClick={() =>
-                        approveDeposit(
-                          deposit.id
-                        )
-                      }
-                      disabled={
-                        approvingDepositId ===
-                        deposit.id
-                      }
-                      className="mt-6 w-full rounded-xl bg-green-500 px-6 py-3 font-bold text-slate-950 transition hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  <p className="mt-1">
+                    <span className="text-slate-400">
+                      Status:{" "}
+                    </span>
+                    <span
+                      className={`font-bold ${statusColor(
+                        reward.status
+                      )}`}
                     >
-                      {approvingDepositId ===
-                      deposit.id
-                        ? "Approving..."
-                        : "Approve Deposit"}
-                    </button>
+                      {reward.status}
+                    </span>
+                  </p>
+
+                  <p className="mt-1 text-sm text-slate-400">
+                    {new Date(reward.created_at).toLocaleString()}
+                  </p>
+
+                  {reward.description && (
+                    <p className="mt-3 rounded-lg bg-black/20 p-3 text-sm text-slate-300">
+                      {reward.description}
+                    </p>
                   )}
 
-                  {deposit.status === "approved" && (
-                    <div className="mt-6 rounded-xl bg-green-500/10 p-3 text-center">
-                      <p className="font-bold text-green-400">
-                        ✓ Deposit Approved
-                      </p>
+                  {reward.status === "pending" && (
+                    <div className="mt-4">
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Reward amount"
+                        value={rewardAmounts[reward.id] || ""}
+                        onChange={(e) =>
+                          setRewardAmounts({
+                            ...rewardAmounts,
+                            [reward.id]: e.target.value,
+                          })
+                        }
+                        className="w-full rounded-xl border border-white/10 bg-slate-900 p-3 outline-none"
+                      />
+
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <button
+                          onClick={() => approveReward(reward.id)}
+                          disabled={processingReward === reward.id}
+                          className="rounded-xl bg-green-500 p-3 font-bold text-black disabled:opacity-50"
+                        >
+                          Approve
+                        </button>
+
+                        <button
+                          onClick={() => rejectReward(reward.id)}
+                          disabled={processingReward === reward.id}
+                          className="rounded-xl bg-red-500 p-3 font-bold disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {reward.status === "approved" && (
+                    <div className="mt-4 rounded-xl bg-green-500/10 p-3 text-green-400">
+                      Approved: Rs.{" "}
+                      {Number(reward.amount).toLocaleString()}
                     </div>
                   )}
                 </div>
@@ -479,201 +408,186 @@ export default function AdminDashboard() {
           )}
         </section>
 
-        <section className="mt-12">
-          <h3 className="text-2xl font-bold">
-            Withdrawal Requests
-          </h3>
+        {/* DEPOSITS */}
 
-          {!loading &&
-            withdrawals.length === 0 && (
-              <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-6 text-center">
-                <p className="text-slate-400">
-                  No withdrawal requests found.
-                </p>
-              </div>
-            )}
+        <section className="mb-10">
+          <h2 className="mb-4 text-2xl font-bold">
+            💰 Deposit Requests
+          </h2>
 
-          {!loading &&
-            withdrawals.length > 0 && (
-              <div className="mt-5 space-y-4">
-                {withdrawals.map(
-                  (withdrawal) => (
-                    <div
-                      key={withdrawal.id}
-                      className="rounded-2xl border border-white/10 bg-white/5 p-6"
+          {deposits.length === 0 ? (
+            <div className="rounded-xl bg-white/5 p-5 text-slate-400">
+              No deposit requests.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {deposits.map((deposit) => (
+                <div
+                  key={deposit.id}
+                  className="rounded-2xl border border-white/10 bg-white/5 p-5"
+                >
+                  <p className="text-xs text-slate-400">
+                    User ID
+                  </p>
+
+                  <p className="break-all text-xs">
+                    {deposit.user_id}
+                  </p>
+
+                  <p className="mt-3 text-2xl font-bold">
+                    Rs. {Number(deposit.amount).toLocaleString()}
+                  </p>
+
+                  <p className="mt-1">
+                    Status:{" "}
+                    <span
+                      className={`font-bold ${statusColor(
+                        deposit.status
+                      )}`}
                     >
+                      {deposit.status}
+                    </span>
+                  </p>
 
-                      <div className="grid gap-4 md:grid-cols-4">
+                  <p className="mt-1 text-sm text-slate-400">
+                    {new Date(deposit.created_at).toLocaleString()}
+                  </p>
 
-                        <div>
-                          <p className="text-sm text-slate-400">
-                            User ID
-                          </p>
-                          <p className="mt-1 break-all text-sm">
-                            {withdrawal.user_id}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-sm text-slate-400">
-                            Amount
-                          </p>
-                          <p className="mt-1 text-2xl font-bold">
-                            Rs.{" "}
-                            {Number(
-                              withdrawal.amount
-                            ).toLocaleString()}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-sm text-slate-400">
-                            Status
-                          </p>
-                          <p
-                            className={`mt-1 font-bold uppercase ${getStatusClass(
-                              withdrawal.status
-                            )}`}
-                          >
-                            {withdrawal.status}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-sm text-slate-400">
-                            Date
-                          </p>
-                          <p className="mt-1 text-sm">
-                            {new Date(
-                              withdrawal.created_at
-                            ).toLocaleString()}
-                          </p>
-                        </div>
-
-                      </div>
-
-                      <div className="mt-6 rounded-xl border border-cyan-400/20 bg-cyan-400/5 p-5">
-
-                        <h4 className="text-lg font-bold text-cyan-400">
-                          Payment Details
-                        </h4>
-
-                        <div className="mt-4 grid gap-4 md:grid-cols-3">
-
-                          <div>
-                            <p className="text-sm text-slate-400">
-                              Withdrawal Method
-                            </p>
-                            <p className="mt-1 font-bold">
-                              {getMethodName(
-                                withdrawal
-                                  .withdrawal_method
-                                  ?.method
-                              )}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-sm text-slate-400">
-                              Account Holder
-                            </p>
-                            <p className="mt-1 font-bold">
-                              {withdrawal
-                                .withdrawal_method
-                                ?.account_name ||
-                                "Not available"}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-sm text-slate-400">
-                              Account Number
-                            </p>
-                            <p className="mt-1 break-all font-bold">
-                              {withdrawal
-                                .withdrawal_method
-                                ?.account_number ||
-                                "Not available"}
-                            </p>
-                          </div>
-
-                        </div>
-                      </div>
-
-                      {withdrawal.status ===
-                        "pending" && (
-                        <div className="mt-6 grid gap-3 md:grid-cols-2">
-
-                          <button
-                            onClick={() =>
-                              approveWithdrawal(
-                                withdrawal.id
-                              )
-                            }
-                            disabled={
-                              processingWithdrawalId ===
-                              withdrawal.id
-                            }
-                            className="rounded-xl bg-green-500 px-6 py-3 font-bold text-slate-950 transition hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {processingWithdrawalId ===
-                            withdrawal.id
-                              ? "Processing..."
-                              : "Approve Withdrawal"}
-                          </button>
-
-                          <button
-                            onClick={() =>
-                              rejectWithdrawal(
-                                withdrawal.id
-                              )
-                            }
-                            disabled={
-                              processingWithdrawalId ===
-                              withdrawal.id
-                            }
-                            className="rounded-xl bg-red-500 px-6 py-3 font-bold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {processingWithdrawalId ===
-                            withdrawal.id
-                              ? "Processing..."
-                              : "Reject Withdrawal"}
-                          </button>
-
-                        </div>
-                      )}
-
-                      {withdrawal.status ===
-                        "approved" && (
-                        <div className="mt-6 rounded-xl bg-green-500/10 p-3 text-center">
-                          <p className="font-bold text-green-400">
-                            ✓ Withdrawal Approved
-                          </p>
-                        </div>
-                      )}
-
-                      {withdrawal.status ===
-                        "rejected" && (
-                        <div className="mt-6 rounded-xl bg-red-500/10 p-3 text-center">
-                          <p className="font-bold text-red-400">
-                            ✕ Withdrawal Rejected
-                          </p>
-                        </div>
-                      )}
-
-                    </div>
-                  )
-                )}
-              </div>
-            )}
+                  {deposit.status === "pending" && (
+                    <button
+                      onClick={() => approveDeposit(deposit.id)}
+                      disabled={processingDeposit === deposit.id}
+                      className="mt-4 w-full rounded-xl bg-green-500 p-3 font-bold text-black disabled:opacity-50"
+                    >
+                      {processingDeposit === deposit.id
+                        ? "Processing..."
+                        : "Approve Deposit"}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
-        <a
-          href="/dashboard"
-          className="mt-10 block text-center text-cyan-400"
+        {/* WITHDRAWALS */}
+
+        <section className="mb-10">
+          <h2 className="mb-4 text-2xl font-bold">
+            💸 Withdrawal Requests
+          </h2>
+
+          {withdrawals.length === 0 ? (
+            <div className="rounded-xl bg-white/5 p-5 text-slate-400">
+              No withdrawal requests.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {withdrawals.map((withdrawal) => (
+                <div
+                  key={withdrawal.id}
+                  className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-5"
+                >
+                  <p className="text-xs text-slate-400">
+                    User ID
+                  </p>
+
+                  <p className="break-all text-xs">
+                    {withdrawal.user_id}
+                  </p>
+
+                  <p className="mt-3 text-2xl font-bold">
+                    Rs.{" "}
+                    {Number(withdrawal.amount).toLocaleString()}
+                  </p>
+
+                  <p className="mt-1">
+                    Status:{" "}
+                    <span
+                      className={`font-bold ${statusColor(
+                        withdrawal.status
+                      )}`}
+                    >
+                      {withdrawal.status}
+                    </span>
+                  </p>
+
+                  <p className="mt-1 text-sm text-slate-400">
+                    {new Date(
+                      withdrawal.created_at
+                    ).toLocaleString()}
+                  </p>
+
+                  {withdrawal.withdrawal_method && (
+                    <div className="mt-4 rounded-xl bg-black/20 p-4">
+                      <p>
+                        Method:{" "}
+                        <b>
+                          {withdrawal.withdrawal_method.method}
+                        </b>
+                      </p>
+
+                      <p className="mt-1">
+                        Name:{" "}
+                        <b>
+                          {
+                            withdrawal.withdrawal_method
+                              .account_name
+                          }
+                        </b>
+                      </p>
+
+                      <p className="mt-1 break-all">
+                        Account:{" "}
+                        <b>
+                          {
+                            withdrawal.withdrawal_method
+                              .account_number
+                          }
+                        </b>
+                      </p>
+                    </div>
+                  )}
+
+                  {withdrawal.status === "pending" && (
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() =>
+                          approveWithdrawal(withdrawal.id)
+                        }
+                        disabled={
+                          processingWithdrawal === withdrawal.id
+                        }
+                        className="rounded-xl bg-green-500 p-3 font-bold text-black disabled:opacity-50"
+                      >
+                        Approve
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          rejectWithdrawal(withdrawal.id)
+                        }
+                        disabled={
+                          processingWithdrawal === withdrawal.id
+                        }
+                        className="rounded-xl bg-red-500 p-3 font-bold disabled:opacity-50"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <button
+          onClick={loadAdmin}
+          className="mb-10 w-full rounded-xl border border-cyan-400 p-3 font-bold text-cyan-400"
         >
-          Back to Dashboard
-        </a>
+          🔄 Refresh
+        </button>
 
       </div>
     </main>

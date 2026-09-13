@@ -69,14 +69,12 @@ export default function Dashboard() {
       }
 
       // Total approved withdrawals
-      const {
-        data: withdrawals,
-        error: withdrawalError,
-      } = await supabase
-        .from("withdrawals")
-        .select("amount")
-        .eq("user_id", user.id)
-        .eq("status", "approved");
+      const { data: withdrawals, error: withdrawalError } =
+        await supabase
+          .from("withdrawals")
+          .select("amount")
+          .eq("user_id", user.id)
+          .eq("status", "approved");
 
       if (withdrawalError) {
         console.log("Withdrawal error:", withdrawalError);
@@ -92,10 +90,7 @@ export default function Dashboard() {
       }
 
       // Earnings
-      const {
-        data: earnings,
-        error: earningsError,
-      } = await supabase
+      const { data: earnings, error: earningsError } = await supabase
         .from("earnings")
         .select("amount, earning_type, created_at")
         .eq("user_id", user.id);
@@ -105,7 +100,6 @@ export default function Dashboard() {
       }
 
       if (earnings) {
-        // Total Earned Balance
         const total = earnings.reduce(
           (sum, item) => sum + Number(item.amount || 0),
           0
@@ -113,7 +107,6 @@ export default function Dashboard() {
 
         setTotalEarnings(total);
 
-        // Today's Earnings
         const today = new Date();
 
         const todayTotal = earnings
@@ -134,7 +127,7 @@ export default function Dashboard() {
         setTodayEarnings(todayTotal);
       }
 
-      // Available Promotional Referral Bonus
+      // Approved Promotional Referral Rewards
       const {
         data: referralRewards,
         error: referralRewardsError,
@@ -278,7 +271,6 @@ export default function Dashboard() {
 
           {/* Available Balance */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-
             <p className="text-sm text-slate-400">
               Available Balance
             </p>
@@ -292,12 +284,10 @@ export default function Dashboard() {
             <p className="mt-2 text-sm text-green-400">
               Available for withdrawal
             </p>
-
           </div>
 
           {/* Earned Balance */}
           <div className="rounded-2xl border border-green-400/20 bg-green-400/5 p-6">
-
             <p className="text-sm text-slate-400">
               Earned Balance
             </p>
@@ -311,12 +301,10 @@ export default function Dashboard() {
             <p className="mt-2 text-sm text-slate-400">
               Recorded earnings
             </p>
-
           </div>
 
           {/* Locked Balance */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-
             <p className="text-sm text-slate-400">
               Locked Balance
             </p>
@@ -330,12 +318,10 @@ export default function Dashboard() {
             <p className="mt-2 text-sm text-slate-400">
               Pending withdrawal amount
             </p>
-
           </div>
 
           {/* Total Withdrawal */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-
             <p className="text-sm text-slate-400">
               Total Withdrawal
             </p>
@@ -349,12 +335,10 @@ export default function Dashboard() {
             <p className="mt-2 text-sm text-slate-400">
               Approved withdrawals
             </p>
-
           </div>
 
           {/* Current Plan */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-
             <p className="text-sm text-slate-400">
               Current Plan
             </p>
@@ -368,7 +352,6 @@ export default function Dashboard() {
                 ? "Your active investment plan"
                 : "Choose a plan to continue"}
             </p>
-
           </div>
 
         </div>
@@ -520,6 +503,13 @@ export default function Dashboard() {
               className="rounded-xl border border-violet-400 p-5 text-center font-bold text-violet-400"
             >
               🎁 Referral
+            </a>
+
+            <a
+              href="/referral"
+              className="rounded-xl border border-pink-400 p-5 text-center font-bold text-pink-400"
+            >
+              🎁 Referral Rewards
             </a>
 
             <a
