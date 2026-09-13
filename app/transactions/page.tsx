@@ -58,7 +58,8 @@ export default function Transactions() {
     if (
       type === "deposit" ||
       type === "earning" ||
-      type === "withdrawal_reversal"
+      type === "withdrawal_reversal" ||
+      type === "referral_reward"
     ) {
       return "text-green-400";
     }
@@ -70,7 +71,8 @@ export default function Transactions() {
     if (
       type === "deposit" ||
       type === "earning" ||
-      type === "withdrawal_reversal"
+      type === "withdrawal_reversal" ||
+      type === "referral_reward"
     ) {
       return "+";
     }
@@ -93,6 +95,10 @@ export default function Transactions() {
 
     if (type === "earning") {
       return "Earning";
+    }
+
+    if (type === "referral_reward") {
+      return "Referral Reward";
     }
 
     return type;
