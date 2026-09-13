@@ -17,6 +17,9 @@ export default function ReferralPage() {
   const [referralCount, setReferralCount] = useState(0);
   const [availableBonus, setAvailableBonus] = useState(0);
   const [rewards, setRewards] = useState<Reward[]>([]);
+  const [levelCounts, setLevelCounts] = useState<number[]>(
+    [0, 0, 0, 0, 0, 0, 0]
+  );
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -66,6 +69,36 @@ export default function ReferralPage() {
       }
 
       setReferralCount(count || 0);
+
+      // G-1 to G-7 counts
+      const {
+        data: levelData,
+        error: levelError,
+      } = await supabase
+        .from("referrals")
+        .select("level")
+        .eq("referrer_id", user.id);
+
+      if (levelError) {
+        console.log(
+          "Referral level error:",
+          levelError
+        );
+      }
+
+      const counts = [0, 0, 0, 0, 0, 0, 0];
+
+      if (levelData) {
+        levelData.forEach((item) => {
+          const level = Number(item.level);
+
+          if (level >= 1 && level <= 7) {
+            counts[level - 1] += 1;
+          }
+        });
+      }
+
+      setLevelCounts(counts);
 
       // Referral rewards
       const {
@@ -158,7 +191,7 @@ export default function ReferralPage() {
           </h1>
 
           <p className="text-sm text-gray-500 mt-1">
-            Apne referrals aur promotional rewards dekhein.
+            Apne referral network aur promotional rewards dekhein.
           </p>
         </div>
 
@@ -186,7 +219,7 @@ export default function ReferralPage() {
           </p>
         </div>
 
-        {/* Stats */}
+        {/* Main Stats */}
         <div className="grid grid-cols-2 gap-4">
 
           <div className="bg-white rounded-2xl shadow p-5">
@@ -209,6 +242,36 @@ export default function ReferralPage() {
             </p>
           </div>
 
+        </div>
+
+        {/* Referral Levels */}
+        <div className="bg-white rounded-2xl shadow p-5">
+          <h2 className="text-lg font-bold mb-4">
+            Referral Levels
+          </h2>
+
+          <div className="grid grid-cols-2 gap-3">
+
+            {levelCounts.map((total, index) => (
+              <div
+                key={index}
+                className="border rounded-xl p-4 bg-gray-50"
+              >
+                <p className="text-sm text-gray-500">
+                  G-{index + 1}
+                </p>
+
+                <p className="text-2xl font-bold mt-1">
+                  {total}
+                </p>
+
+                <p className="text-xs text-gray-500 mt-1">
+                  Referrals
+                </p>
+              </div>
+            ))}
+
+          </div>
         </div>
 
         {/* Reward History */}
