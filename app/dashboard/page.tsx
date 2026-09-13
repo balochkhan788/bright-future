@@ -129,7 +129,10 @@ export default function Dashboard() {
       const todayTotal =
         earnings
           ?.filter((item) => item.created_at?.startsWith(today))
-          .reduce((sum, item) => sum + Number(item.amount || 0), 0) || 0;
+          .reduce(
+            (sum, item) => sum + Number(item.amount || 0),
+            0
+          ) || 0;
 
       setTodayEarnings(todayTotal);
 
@@ -167,13 +170,16 @@ export default function Dashboard() {
 
   return (
     <main className="min-h-screen bg-slate-100">
+
       {/* Header */}
       <header className="bg-white border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-800">
               Bright Future
             </h1>
+
             <p className="text-xs sm:text-sm text-slate-500">
               Dashboard
             </p>
@@ -188,13 +194,17 @@ export default function Dashboard() {
           >
             Logout
           </button>
+
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-5 space-y-5">
+
         {/* Slideshow */}
         <section className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-6 shadow-lg">
+
           <div className="min-h-[150px] flex flex-col justify-center">
+
             <p className="text-sm opacity-90 mb-1">
               {slides[slide].title1}
             </p>
@@ -206,27 +216,34 @@ export default function Dashboard() {
             <p className="mt-3 text-sm sm:text-base opacity-90">
               {slides[slide].description}
             </p>
+
           </div>
 
           <div className="flex justify-center gap-2 mt-4">
+
             {slides.map((_, index) => (
               <button
                 key={index}
                 onClick={() => setSlide(index)}
                 aria-label={"Slide " + (index + 1)}
-                className={`h-2 rounded-full transition-all ${
+                className={
                   slide === index
-                    ? "w-7 bg-white"
-                    : "w-2 bg-white/50"
-                }`}
+                    ? "h-2 w-7 rounded-full bg-white"
+                    : "h-2 w-2 rounded-full bg-white/50"
+                }
               />
             ))}
+
           </div>
+
         </section>
 
         {/* Welcome */}
         <section className="bg-white rounded-2xl shadow p-5">
-          <p className="text-sm text-slate-500">Welcome back</p>
+
+          <p className="text-sm text-slate-500">
+            Welcome back
+          </p>
 
           <h2 className="text-2xl font-bold text-slate-800 mt-1">
             {userName}
@@ -235,19 +252,23 @@ export default function Dashboard() {
           <p className="text-sm text-slate-500 mt-1">
             Manage your account and view your latest activity.
           </p>
+
         </section>
 
         {/* Account Summary */}
         <section>
+
           <h2 className="text-lg font-bold text-slate-800 mb-3">
             Account Summary
           </h2>
 
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+
             <div className="bg-white rounded-xl shadow p-4">
               <p className="text-xs text-slate-500">
                 Available Balance
               </p>
+
               <p className="text-xl font-bold text-green-600 mt-2">
                 Rs {balance.toLocaleString()}
               </p>
@@ -257,6 +278,7 @@ export default function Dashboard() {
               <p className="text-xs text-slate-500">
                 Earned Balance
               </p>
+
               <p className="text-xl font-bold text-blue-600 mt-2">
                 Rs {totalEarnings.toLocaleString()}
               </p>
@@ -266,6 +288,7 @@ export default function Dashboard() {
               <p className="text-xs text-slate-500">
                 Locked Balance
               </p>
+
               <p className="text-xl font-bold text-orange-500 mt-2">
                 Rs {lockedBalance.toLocaleString()}
               </p>
@@ -275,6 +298,7 @@ export default function Dashboard() {
               <p className="text-xs text-slate-500">
                 Total Withdrawal
               </p>
+
               <p className="text-xl font-bold text-purple-600 mt-2">
                 Rs {totalWithdrawal.toLocaleString()}
               </p>
@@ -284,24 +308,30 @@ export default function Dashboard() {
               <p className="text-xs text-slate-500">
                 Current Plan
               </p>
+
               <p className="text-lg font-bold text-slate-800 mt-2">
                 {planName}
               </p>
             </div>
+
           </div>
+
         </section>
 
         {/* Earnings Overview */}
         <section>
+
           <h2 className="text-lg font-bold text-slate-800 mb-3">
             Earnings Overview
           </h2>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+
             <div className="bg-white rounded-xl shadow p-4">
               <p className="text-xs text-slate-500">
                 Available Bonus
               </p>
+
               <p className="text-xl font-bold text-green-600 mt-2">
                 Rs {referralBonus.toLocaleString()}
               </p>
@@ -311,6 +341,7 @@ export default function Dashboard() {
               <p className="text-xs text-slate-500">
                 Today's Earnings
               </p>
+
               <p className="text-xl font-bold text-blue-600 mt-2">
                 Rs {todayEarnings.toLocaleString()}
               </p>
@@ -320,20 +351,25 @@ export default function Dashboard() {
               <p className="text-xs text-slate-500">
                 Total Earnings
               </p>
+
               <p className="text-xl font-bold text-indigo-600 mt-2">
                 Rs {totalEarnings.toLocaleString()}
               </p>
             </div>
+
           </div>
+
         </section>
 
         {/* Quick Actions */}
         <section>
+
           <h2 className="text-lg font-bold text-slate-800 mb-3">
             Quick Actions
           </h2>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+
             <Link
               href="/plans"
               className="bg-blue-600 text-white rounded-xl p-4 text-center font-semibold"
@@ -377,7 +413,7 @@ export default function Dashboard() {
             </Link>
 
             <Link
-              href="/referral"
+              href="/referral-rewards"
               className="bg-rose-600 text-white rounded-xl p-4 text-center font-semibold"
             >
               Referral Rewards
@@ -396,18 +432,25 @@ export default function Dashboard() {
             >
               Profile
             </Link>
+
           </div>
+
         </section>
 
         {/* Account Information */}
         <section className="bg-white rounded-2xl shadow p-5">
+
           <h2 className="text-lg font-bold text-slate-800 mb-4">
             Account Information
           </h2>
 
           <div className="space-y-3 text-sm">
+
             <div className="flex justify-between border-b pb-3">
-              <span className="text-slate-500">Current Plan</span>
+              <span className="text-slate-500">
+                Current Plan
+              </span>
+
               <span className="font-semibold text-slate-800">
                 {planName}
               </span>
@@ -417,6 +460,7 @@ export default function Dashboard() {
               <span className="text-slate-500">
                 Available Balance
               </span>
+
               <span className="font-semibold text-green-600">
                 Rs {balance.toLocaleString()}
               </span>
@@ -426,15 +470,19 @@ export default function Dashboard() {
               <span className="text-slate-500">
                 Total Earnings
               </span>
+
               <span className="font-semibold text-blue-600">
                 Rs {totalEarnings.toLocaleString()}
               </span>
             </div>
+
           </div>
+
         </section>
 
         {/* Notice */}
         <section className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5">
+
           <h2 className="font-bold text-yellow-800">
             Important Notice
           </h2>
@@ -443,7 +491,9 @@ export default function Dashboard() {
             Please review your account activity and transaction
             information regularly.
           </p>
+
         </section>
+
       </div>
     </main>
   );
