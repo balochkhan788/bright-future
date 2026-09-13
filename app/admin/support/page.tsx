@@ -16,16 +16,20 @@ type Conversation = {
   messages: SupportMessage[];
 };
 
+type UserEmail = {
+  user_id: string;
+  email: string;
+};
+
 export default function AdminSupport() {
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [reply, setReply] = useState("");
   const [loading, setLoading] = useState(true);
-
   const [sending, setSending] = useState(false);
 
-  // Users whose latest message is new/unread
   const [unreadUsers, setUnreadUsers] = useState<string[]>([]);
+  const [userEmails, setUserEmails] = useState<UserEmail[]>([]);
 
   async function loadMessages() {
     const { data, error } = await supabase
@@ -40,8 +44,30 @@ export default function AdminSupport() {
     setLoading(false);
   }
 
+  async function loadUserEmails() {
+    const { data, error } = await supabase.rpc(
+      "get_support_user_emails"
+    );
+
+    if (error) {
+      console.error("Failed to load user emails:", error);
+      return;
+    }
+
+    setUserEmails(data || []);
+  }
+
+  function getUserEmail(userId: string) {
+    const user = userEmails.find(
+      (item) => item.user_id === userId
+    );
+
+    return user?.email || userId;
+  }
+
   useEffect(() => {
     loadMessages();
+    loadUserEmails();
 
     const channel = supabase
       .channel("admin-support-messages")
@@ -57,7 +83,6 @@ export default function AdminSupport() {
 
           setMessages((current) => [...current, newMessage]);
 
-          // Only user messages are considered unread
           if (
             newMessage.sender_role === "user" &&
             newMessage.user_id !== selectedUser
@@ -83,7 +108,8 @@ export default function AdminSupport() {
 
   messages.forEach((message) => {
     const existing = conversations.find(
-      (conversation) => conversation.user_id === message.user_id
+      (conversation) =>
+        conversation.user_id === message.user_id
     );
 
     if (existing) {
@@ -103,13 +129,14 @@ export default function AdminSupport() {
   function selectUser(userId: string) {
     setSelectedUser(userId);
 
-    // Mark this user's messages as read
     setUnreadUsers((current) =>
       current.filter((id) => id !== userId)
     );
   }
 
-  async function sendReply(e: React.FormEvent<HTMLFormElement>) {
+  async function sendReply(
+    e: React.FormEvent<HTMLFormElement>
+  ) {
     e.preventDefault();
 
     if (!selectedUser || !reply.trim() || sending) {
@@ -178,25 +205,32 @@ export default function AdminSupport() {
                         conversation.messages.length - 1
                       ];
 
-                    const isUnread = unreadUsers.includes(
-                      conversation.user_id
-                    );
+                    const isUnread =
+                      unreadUsers.includes(
+                        conversation.user_id
+                      );
 
                     return (
                       <button
                         key={conversation.user_id}
                         onClick={() =>
-                          selectUser(conversation.user_id)
+                          selectUser(
+                            conversation.user_id
+                          )
                         }
                         className={`w-full rounded-xl p-4 text-left ${
-                          selectedUser === conversation.user_id
+                          selectedUser ===
+                          conversation.user_id
                             ? "bg-cyan-500 text-slate-950"
                             : "bg-white/10 text-white"
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
+
                           <p className="break-all text-sm font-semibold">
-                            {conversation.user_id}
+                            {getUserEmail(
+                              conversation.user_id
+                            )}
                           </p>
 
                           {isUnread && (
@@ -204,11 +238,13 @@ export default function AdminSupport() {
                               NEW
                             </span>
                           )}
+
                         </div>
 
                         <p className="mt-1 truncate text-xs opacity-70">
                           {lastMessage.message}
                         </p>
+
                       </button>
                     );
                   })}
@@ -225,37 +261,50 @@ export default function AdminSupport() {
                 </div>
               ) : (
                 <>
+                  <div className="mb-4 rounded-xl bg-cyan-500/10 p-3">
+                    <p className="text-xs text-slate-400">
+                      User
+                    </p>
+
+                    <p className="mt-1 break-all font-semibold text-cyan-300">
+                      {getUserEmail(selectedUser!)}
+                    </p>
+                  </div>
+
                   <div className="mb-4 h-[400px] overflow-y-auto rounded-xl bg-slate-900 p-4">
 
                     <div className="space-y-3">
-                      {selectedConversation.messages.map((item) => (
-                        <div
-                          key={item.id}
-                          className={`flex ${
-                            item.sender_role === "support"
-                              ? "justify-end"
-                              : "justify-start"
-                          }`}
-                        >
+                      {selectedConversation.messages.map(
+                        (item) => (
                           <div
-                            className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                            key={item.id}
+                            className={`flex ${
                               item.sender_role === "support"
-                                ? "bg-cyan-500 text-slate-950"
-                                : "bg-white/10 text-white"
+                                ? "justify-end"
+                                : "justify-start"
                             }`}
                           >
-                            <p className="text-sm">
-                              {item.message}
-                            </p>
+                            <div
+                              className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                                item.sender_role ===
+                                "support"
+                                  ? "bg-cyan-500 text-slate-950"
+                                  : "bg-white/10 text-white"
+                              }`}
+                            >
+                              <p className="text-sm">
+                                {item.message}
+                              </p>
 
-                            <p className="mt-1 text-[10px] opacity-60">
-                              {new Date(
-                                item.created_at
-                              ).toLocaleString()}
-                            </p>
+                              <p className="mt-1 text-[10px] opacity-60">
+                                {new Date(
+                                  item.created_at
+                                ).toLocaleString()}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      )}
                     </div>
 
                   </div>
@@ -264,7 +313,9 @@ export default function AdminSupport() {
 
                     <textarea
                       value={reply}
-                      onChange={(e) => setReply(e.target.value)}
+                      onChange={(e) =>
+                        setReply(e.target.value)
+                      }
                       placeholder="Reply to user..."
                       rows={4}
                       className="w-full rounded-xl border border-white/10 bg-slate-900 p-4 text-white outline-none focus:border-cyan-400"
@@ -275,7 +326,9 @@ export default function AdminSupport() {
                       disabled={!reply.trim() || sending}
                       className="mt-3 w-full rounded-xl bg-cyan-500 px-6 py-4 font-bold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {sending ? "Sending..." : "Send Reply"}
+                      {sending
+                        ? "Sending..."
+                        : "Send Reply"}
                     </button>
 
                   </form>
