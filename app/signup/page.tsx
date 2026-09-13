@@ -1,11 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function SignupPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("ref") || "";
+
+    setReferralCode(code);
+
+    console.log("REFERRAL CODE:", code);
+  }, []);
 
   async function handleSignup(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -37,14 +47,6 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      // Referral code URL se lena
-      let referralCode = "";
-
-      if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search);
-        referralCode = params.get("ref") || "";
-      }
-
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -96,6 +98,12 @@ export default function SignupPage() {
           <h2 className="mb-6 text-2xl font-bold">
             Sign Up
           </h2>
+
+          {referralCode && (
+            <div className="mb-5 rounded-lg bg-cyan-500/10 p-3 text-center text-sm text-cyan-400">
+              Referral Code: {referralCode}
+            </div>
+          )}
 
           <form
             onSubmit={handleSignup}
