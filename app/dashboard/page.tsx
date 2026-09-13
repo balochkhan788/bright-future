@@ -192,7 +192,6 @@ export default function Dashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-5 space-y-5">
-
         {/* Slideshow */}
         <section className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-6 shadow-lg">
           <div className="min-h-[150px] flex flex-col justify-center">
@@ -245,7 +244,6 @@ export default function Dashboard() {
           </h2>
 
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-
             <div className="bg-white rounded-xl shadow p-4">
               <p className="text-xs text-slate-500">
                 Available Balance
@@ -290,7 +288,6 @@ export default function Dashboard() {
                 {planName}
               </p>
             </div>
-
           </div>
         </section>
 
@@ -301,7 +298,6 @@ export default function Dashboard() {
           </h2>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-
             <div className="bg-white rounded-xl shadow p-4">
               <p className="text-xs text-slate-500">
                 Available Bonus
@@ -328,7 +324,6 @@ export default function Dashboard() {
                 Rs {totalEarnings.toLocaleString()}
               </p>
             </div>
-
           </div>
         </section>
 
@@ -339,7 +334,6 @@ export default function Dashboard() {
           </h2>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-
             <Link
               href="/plans"
               className="bg-blue-600 text-white rounded-xl p-4 text-center font-semibold"
@@ -383,6 +377,13 @@ export default function Dashboard() {
             </Link>
 
             <Link
+              href="/referral"
+              className="bg-rose-600 text-white rounded-xl p-4 text-center font-semibold"
+            >
+              Referral Rewards
+            </Link>
+
+            <Link
               href="/spin-wheel"
               className="bg-cyan-600 text-white rounded-xl p-4 text-center font-semibold"
             >
@@ -395,7 +396,6 @@ export default function Dashboard() {
             >
               Profile
             </Link>
-
           </div>
         </section>
 
@@ -444,7 +444,6 @@ export default function Dashboard() {
             information regularly.
           </p>
         </section>
-
       </div>
     </main>
   );
