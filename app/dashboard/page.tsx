@@ -1,51 +1,90 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+
+type Slide = {
+  title1: string;
+  title2: string;
+  description: string;
+};
 
 export default function Dashboard() {
   const [balance, setBalance] = useState(0);
   const [lockedBalance, setLockedBalance] = useState(0);
   const [totalWithdrawal, setTotalWithdrawal] = useState(0);
-
-  const [referralBonus, setReferralBonus] = useState(0);
-  const [todayEarnings, setTodayEarnings] = useState(0);
   const [totalEarnings, setTotalEarnings] = useState(0);
+  const [todayEarnings, setTodayEarnings] = useState(0);
+  const [referralBonus, setReferralBonus] = useState(0);
 
-  const [currentPlan, setCurrentPlan] = useState("");
-
-  const [loading, setLoading] = useState(true);
+  const [planName, setPlanName] = useState("No Active Plan");
   const [userName, setUserName] = useState("User");
+  const [loading, setLoading] = useState(true);
+  const [slide, setSlide] = useState(0);
+
+  const slides: Slide[] = [
+    {
+      title1: "Manage Your",
+      title2: "Investments & Earnings",
+      description: "Track your account activity, balance and earnings.",
+    },
+    {
+      title1: "Track Your",
+      title2: "Account Balance",
+      description: "View your available, locked and earned balance.",
+    },
+    {
+      title1: "Explore Your",
+      title2: "Rewards & Tasks",
+      description: "Access available tasks, rewards and referral features.",
+    },
+  ];
 
   useEffect(() => {
-    getDashboardData();
+    loadDashboard();
   }, []);
 
-  async function getDashboardData() {
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSlide((prev) => (prev + 1) % slides.length);
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, [slides.length]);
+
+  async function loadDashboard() {
     try {
+      setLoading(true);
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user) {
-        window.location.href = "/login";
+        setLoading(false);
         return;
       }
 
-      setUserName(user.email?.split("@")[0] || "User");
+      const name =
+        user.user_metadata?.full_name ||
+        user.email?.split("@")[0] ||
+        "User";
+
+      setUserName(name);
 
       const { data: wallet } = await supabase
         .from("wallets")
         .select("available_balance, locked_balance")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (wallet) {
         setBalance(Number(wallet.available_balance || 0));
         setLockedBalance(Number(wallet.locked_balance || 0));
       }
 
-      const { data: activePlan } = await supabase
+      const { data: plan } = await supabase
         .from("user_plans")
         .select("plan_name")
         .eq("user_id", user.id)
@@ -54,8 +93,8 @@ export default function Dashboard() {
         .limit(1)
         .maybeSingle();
 
-      if (activePlan) {
-        setCurrentPlan(activePlan.plan_name);
+      if (plan) {
+        setPlanName(plan.plan_name || "Active Plan");
       }
 
       const { data: withdrawals } = await supabase
@@ -64,470 +103,347 @@ export default function Dashboard() {
         .eq("user_id", user.id)
         .eq("status", "approved");
 
-      if (withdrawals) {
-        setTotalWithdrawal(
-          withdrawals.reduce(
-            (sum, item) => sum + Number(item.amount || 0),
-            0
-          )
-        );
-      }
+      const withdrawalTotal =
+        withdrawals?.reduce(
+          (sum, item) => sum + Number(item.amount || 0),
+          0
+        ) || 0;
+
+      setTotalWithdrawal(withdrawalTotal);
 
       const { data: earnings } = await supabase
         .from("earnings")
-        .select("amount, earning_type, created_at")
+        .select("amount, created_at")
         .eq("user_id", user.id);
 
-      if (earnings) {
-        const total = earnings.reduce(
+      const allEarnings =
+        earnings?.reduce(
           (sum, item) => sum + Number(item.amount || 0),
           0
-        );
+        ) || 0;
 
-        setTotalEarnings(total);
+      setTotalEarnings(allEarnings);
 
-        const today = new Date();
+      const today = new Date().toISOString().split("T")[0];
 
-        const todayTotal = earnings
-          .filter((item) => {
-            const earningDate = new Date(item.created_at);
+      const todayTotal =
+        earnings
+          ?.filter((item) => item.created_at?.startsWith(today))
+          .reduce((sum, item) => sum + Number(item.amount || 0), 0) || 0;
 
-            return (
-              earningDate.getFullYear() === today.getFullYear() &&
-              earningDate.getMonth() === today.getMonth() &&
-              earningDate.getDate() === today.getDate()
-            );
-          })
-          .reduce(
-            (sum, item) => sum + Number(item.amount || 0),
-            0
-          );
+      setTodayEarnings(todayTotal);
 
-        setTodayEarnings(todayTotal);
-      }
-
-      const { data: referralRewards } = await supabase
+      const { data: rewards } = await supabase
         .from("referral_rewards")
-        .select("amount, status")
+        .select("amount")
         .eq("user_id", user.id)
         .eq("status", "approved");
 
-      if (referralRewards) {
-        const referralTotal = referralRewards.reduce(
+      const approvedRewards =
+        rewards?.reduce(
           (sum, item) => sum + Number(item.amount || 0),
           0
-        );
+        ) || 0;
 
-        setReferralBonus(referralTotal);
-      }
+      setReferralBonus(approvedRewards);
     } catch (error) {
-      console.log("Dashboard error:", error);
+      console.error("Dashboard error:", error);
     } finally {
       setLoading(false);
     }
   }
 
-  const money = (value: number) =>
-    "Rs. " + value.toLocaleString();
-
-  return (
-    <main className="min-h-screen overflow-x-hidden bg-slate-950 px-3 py-4 text-white sm:px-5 sm:py-6">
-      <div className="mx-auto w-full max-w-7xl">
-
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold sm:text-3xl">
-              Bright <span className="text-cyan-400">Future</span>
-            </h1>
-
-            <p className="mt-1 text-xs text-slate-400 sm:text-sm">
-              Investment Dashboard
-            </p>
-          </div>
-
-          <a
-            href="/login"
-            className="w-full rounded-lg border border-white/20 px-4 py-3 text-center text-sm sm:w-auto sm:py-2"
-          >
-            Logout
-          </a>
-        </div>
-
-        {/* Introduction */}
-        <div className="relative mt-5 overflow-hidden rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-violet-500/20 p-4 shadow-2xl sm:mt-8 sm:rounded-3xl sm:p-7">
-
-          <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-cyan-400/20 blur-2xl" />
-
-          <div className="absolute -bottom-20 left-1/3 h-40 w-40 rounded-full bg-violet-500/20 blur-2xl" />
-
-          <div className="relative grid items-center gap-6 md:grid-cols-3">
-
-            <div className="md:col-span-2">
-
-              <div className="mb-3 inline-block rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-[10px] font-bold tracking-widest text-cyan-300 sm:px-4 sm:text-xs">
-                WELCOME TO BRIGHT FUTURE
-              </div>
-
-              <h2 className="text-2xl font-extrabold leading-tight sm:text-4xl">
-                Manage Your{" "}
-                <span className="text-cyan-400">
-                  Investments & Earnings
-                </span>
-              </h2>
-
-              <p className="mt-3 text-sm leading-6 text-slate-300 sm:mt-4 sm:text-base sm:leading-7">
-                Bright Future is a simple and modern platform where you can
-                manage your investments and earnings in one place.
-              </p>
-            </div>
-
-            <div className="hidden items-center justify-center md:flex">
-              <div className="relative h-44 w-44 lg:h-48 lg:w-48">
-
-                <div className="absolute inset-0 rounded-full border border-cyan-400/20 bg-cyan-400/5 shadow-[0_0_80px_rgba(34,211,238,0.15)]" />
-
-                <div className="absolute inset-5 rounded-full border border-blue-400/20 bg-blue-400/10" />
-
-                <div className="absolute inset-10 flex items-center justify-center rounded-3xl border border-cyan-300/30 bg-slate-950/70 shadow-xl backdrop-blur">
-
-                  <div className="text-center">
-                    <div className="text-4xl lg:text-5xl">
-                      🚀
-                    </div>
-
-                    <div className="mt-2 text-xs font-bold tracking-widest text-cyan-300">
-                      FUTURE
-                    </div>
-                  </div>
-                </div>
-
-                <div className="absolute -right-2 top-8 rounded-xl border border-green-400/30 bg-green-400/10 px-2 py-1 text-[10px] font-bold text-green-400 lg:px-3 lg:py-2 lg:text-xs">
-                  📈 Growth
-                </div>
-
-                <div className="absolute -bottom-2 left-0 rounded-xl border border-violet-400/30 bg-violet-400/10 px-2 py-1 text-[10px] font-bold text-violet-400 lg:px-3 lg:py-2 lg:text-xs">
-                  💎 Rewards
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Welcome */}
-        <div className="mt-7 sm:mt-10">
-          <h2 className="break-words text-2xl font-bold sm:text-3xl">
-            Welcome, {userName} 👋
-          </h2>
-
-          <p className="mt-2 text-sm text-slate-400">
-            Manage your account from one place.
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow p-6 text-center">
+          <p className="text-lg font-semibold text-slate-700">
+            Loading Dashboard...
           </p>
         </div>
+      </main>
+    );
+  }
 
-        {/* Main Cards */}
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-5">
-
-          <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6">
-            <p className="text-xs text-slate-400 sm:text-sm">
-              Available Balance
-            </p>
-
-            <p className="mt-2 break-words text-2xl font-bold sm:mt-3 sm:text-3xl">
-              {loading ? "Loading..." : money(balance)}
-            </p>
-
-            <p className="mt-2 text-xs text-green-400 sm:text-sm">
-              Available for withdrawal
-            </p>
-          </div>
-
-          <div className="min-w-0 rounded-2xl border border-green-400/20 bg-green-400/5 p-4 sm:p-6">
-            <p className="text-xs text-slate-400 sm:text-sm">
-              Earned Balance
-            </p>
-
-            <p className="mt-2 break-words text-2xl font-bold text-green-400 sm:mt-3 sm:text-3xl">
-              {loading ? "Loading..." : money(totalEarnings)}
-            </p>
-
-            <p className="mt-2 text-xs text-slate-400 sm:text-sm">
-              Recorded earnings
+  return (
+    <main className="min-h-screen bg-slate-100">
+      {/* Header */}
+      <header className="bg-white border-b shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-800">
+              Bright Future
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500">
+              Dashboard
             </p>
           </div>
 
-          <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6">
-            <p className="text-xs text-slate-400 sm:text-sm">
-              Locked Balance
-            </p>
-
-            <p className="mt-2 break-words text-2xl font-bold text-yellow-400 sm:mt-3 sm:text-3xl">
-              {loading ? "Loading..." : money(lockedBalance)}
-            </p>
-
-            <p className="mt-2 text-xs text-slate-400 sm:text-sm">
-              Pending withdrawal amount
-            </p>
-          </div>
-
-          <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6">
-            <p className="text-xs text-slate-400 sm:text-sm">
-              Total Withdrawal
-            </p>
-
-            <p className="mt-2 break-words text-2xl font-bold text-orange-400 sm:mt-3 sm:text-3xl">
-              {loading ? "Loading..." : money(totalWithdrawal)}
-            </p>
-
-            <p className="mt-2 text-xs text-slate-400 sm:text-sm">
-              Approved withdrawals
-            </p>
-          </div>
-
-          <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6">
-            <p className="text-xs text-slate-400 sm:text-sm">
-              Current Plan
-            </p>
-
-            <p className="mt-2 break-words text-xl font-bold text-cyan-400 sm:mt-3 sm:text-2xl">
-              {currentPlan || "No Active Plan"}
-            </p>
-
-            <p className="mt-2 text-xs text-slate-400 sm:text-sm">
-              {currentPlan
-                ? "Your active investment plan"
-                : "Choose a plan to continue"}
-            </p>
-          </div>
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut();
+              window.location.href = "/login";
+            }}
+            className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+          >
+            Logout
+          </button>
         </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 py-5 space-y-5">
+
+        {/* Slideshow */}
+        <section className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-6 shadow-lg">
+          <div className="min-h-[150px] flex flex-col justify-center">
+            <p className="text-sm opacity-90 mb-1">
+              {slides[slide].title1}
+            </p>
+
+            <h2 className="text-2xl sm:text-3xl font-bold">
+              {slides[slide].title2}
+            </h2>
+
+            <p className="mt-3 text-sm sm:text-base opacity-90">
+              {slides[slide].description}
+            </p>
+          </div>
+
+          <div className="flex justify-center gap-2 mt-4">
+            {slides.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setSlide(index)}
+                aria-label={"Slide " + (index + 1)}
+                className={`h-2 rounded-full transition-all ${
+                  slide === index
+                    ? "w-7 bg-white"
+                    : "w-2 bg-white/50"
+                }`}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Welcome */}
+        <section className="bg-white rounded-2xl shadow p-5">
+          <p className="text-sm text-slate-500">Welcome back</p>
+
+          <h2 className="text-2xl font-bold text-slate-800 mt-1">
+            {userName}
+          </h2>
+
+          <p className="text-sm text-slate-500 mt-1">
+            Manage your account and view your latest activity.
+          </p>
+        </section>
+
+        {/* Account Summary */}
+        <section>
+          <h2 className="text-lg font-bold text-slate-800 mb-3">
+            Account Summary
+          </h2>
+
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+
+            <div className="bg-white rounded-xl shadow p-4">
+              <p className="text-xs text-slate-500">
+                Available Balance
+              </p>
+              <p className="text-xl font-bold text-green-600 mt-2">
+                Rs {balance.toLocaleString()}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow p-4">
+              <p className="text-xs text-slate-500">
+                Earned Balance
+              </p>
+              <p className="text-xl font-bold text-blue-600 mt-2">
+                Rs {totalEarnings.toLocaleString()}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow p-4">
+              <p className="text-xs text-slate-500">
+                Locked Balance
+              </p>
+              <p className="text-xl font-bold text-orange-500 mt-2">
+                Rs {lockedBalance.toLocaleString()}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow p-4">
+              <p className="text-xs text-slate-500">
+                Total Withdrawal
+              </p>
+              <p className="text-xl font-bold text-purple-600 mt-2">
+                Rs {totalWithdrawal.toLocaleString()}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow p-4">
+              <p className="text-xs text-slate-500">
+                Current Plan
+              </p>
+              <p className="text-lg font-bold text-slate-800 mt-2">
+                {planName}
+              </p>
+            </div>
+
+          </div>
+        </section>
 
         {/* Earnings Overview */}
-        <div className="mt-8 sm:mt-10">
-          <h3 className="text-lg font-bold sm:text-xl">
+        <section>
+          <h2 className="text-lg font-bold text-slate-800 mb-3">
             Earnings Overview
-          </h3>
+          </h2>
 
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:mt-5 md:grid-cols-3 sm:gap-5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
 
-            <div className="min-w-0 rounded-2xl border border-violet-400/20 bg-violet-400/5 p-4 sm:p-6">
-              <p className="text-xs text-slate-400 sm:text-sm">
+            <div className="bg-white rounded-xl shadow p-4">
+              <p className="text-xs text-slate-500">
                 Available Bonus
               </p>
-
-              <p className="mt-2 break-words text-2xl font-bold text-violet-400 sm:mt-3 sm:text-3xl">
-                {loading ? "Loading..." : money(referralBonus)}
-              </p>
-
-              <p className="mt-2 text-xs text-slate-400 sm:text-sm">
-                Approved promotional rewards
+              <p className="text-xl font-bold text-green-600 mt-2">
+                Rs {referralBonus.toLocaleString()}
               </p>
             </div>
 
-            <div className="min-w-0 rounded-2xl border border-green-400/20 bg-green-400/5 p-4 sm:p-6">
-              <p className="text-xs text-slate-400 sm:text-sm">
-                Today&apos;s Earnings
+            <div className="bg-white rounded-xl shadow p-4">
+              <p className="text-xs text-slate-500">
+                Today's Earnings
               </p>
-
-              <p className="mt-2 break-words text-2xl font-bold text-green-400 sm:mt-3 sm:text-3xl">
-                {loading ? "Loading..." : money(todayEarnings)}
-              </p>
-
-              <p className="mt-2 text-xs text-slate-400 sm:text-sm">
-                Today&apos;s recorded earnings
+              <p className="text-xl font-bold text-blue-600 mt-2">
+                Rs {todayEarnings.toLocaleString()}
               </p>
             </div>
 
-            <div className="min-w-0 rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-4 sm:p-6">
-              <p className="text-xs text-slate-400 sm:text-sm">
+            <div className="bg-white rounded-xl shadow p-4">
+              <p className="text-xs text-slate-500">
                 Total Earnings
               </p>
-
-              <p className="mt-2 break-words text-2xl font-bold text-cyan-400 sm:mt-3 sm:text-3xl">
-                {loading ? "Loading..." : money(totalEarnings)}
-              </p>
-
-              <p className="mt-2 text-xs text-slate-400 sm:text-sm">
-                Total recorded earnings
+              <p className="text-xl font-bold text-indigo-600 mt-2">
+                Rs {totalEarnings.toLocaleString()}
               </p>
             </div>
+
           </div>
-        </div>
+        </section>
 
         {/* Quick Actions */}
-        <div className="mt-8 sm:mt-10">
-          <h3 className="text-lg font-bold sm:text-xl">
+        <section>
+          <h2 className="text-lg font-bold text-slate-800 mb-3">
             Quick Actions
-          </h3>
+          </h2>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
-            <a
+            <Link
               href="/plans"
-              className="rounded-xl bg-cyan-500 p-4 text-center text-sm font-bold text-slate-950 sm:p-5"
+              className="bg-blue-600 text-white rounded-xl p-4 text-center font-semibold"
             >
-              📈 View Plans
-            </a>
+              Plans
+            </Link>
 
-            <a
-              href="/profile"
-              className="rounded-xl border border-cyan-400 p-4 text-center text-sm font-bold text-cyan-400 sm:p-5"
-            >
-              👤 My Profile
-            </a>
-
-            <a
+            <Link
               href="/deposit"
-              className="rounded-xl border border-green-400 p-4 text-center text-sm font-bold text-green-400 sm:p-5"
+              className="bg-green-600 text-white rounded-xl p-4 text-center font-semibold"
             >
-              💰 Deposit
-            </a>
+              Deposit
+            </Link>
 
-            <a
+            <Link
               href="/withdraw"
-              className="rounded-xl border border-yellow-400 p-4 text-center text-sm font-bold text-yellow-400 sm:p-5"
+              className="bg-orange-500 text-white rounded-xl p-4 text-center font-semibold"
             >
-              📤 Withdraw
-            </a>
+              Withdraw
+            </Link>
 
-            <a
-              href="/withdrawal-history"
-              className="rounded-xl border border-orange-400 p-4 text-center text-sm font-bold text-orange-400 sm:p-5"
-            >
-              📋 Withdrawal History
-            </a>
-
-            <a
+            <Link
               href="/transactions"
-              className="rounded-xl border border-purple-400 p-4 text-center text-sm font-bold text-purple-400 sm:p-5"
+              className="bg-purple-600 text-white rounded-xl p-4 text-center font-semibold"
             >
-              💳 Transactions
-            </a>
+              Transactions
+            </Link>
 
-            <a
-              href="/profit-history"
-              className="rounded-xl border border-green-400 p-4 text-center text-sm font-bold text-green-400 sm:p-5"
-            >
-              📊 Profit History
-            </a>
-
-            <a
+            <Link
               href="/task"
-              className="rounded-xl border border-blue-400 p-4 text-center text-sm font-bold text-blue-400 sm:p-5"
+              className="bg-indigo-600 text-white rounded-xl p-4 text-center font-semibold"
             >
-              🎯 Tasks
-            </a>
+              Daily Task
+            </Link>
 
-            <a
+            <Link
+              href="/referral"
+              className="bg-pink-600 text-white rounded-xl p-4 text-center font-semibold"
+            >
+              Referral
+            </Link>
+
+            <Link
               href="/spin-wheel"
-              className="rounded-xl border border-pink-400 p-4 text-center text-sm font-bold text-pink-400 sm:p-5"
+              className="bg-cyan-600 text-white rounded-xl p-4 text-center font-semibold"
             >
-              🎡 Spin Wheel
-            </a>
+              Spin Wheel
+            </Link>
 
-            <a
-              href="/referral"
-              className="rounded-xl border border-violet-400 p-4 text-center text-sm font-bold text-violet-400 sm:p-5"
+            <Link
+              href="/profile"
+              className="bg-slate-700 text-white rounded-xl p-4 text-center font-semibold"
             >
-              🎁 Referral
-            </a>
+              Profile
+            </Link>
 
-            <a
-              href="/referral"
-              className="rounded-xl border border-pink-400 p-4 text-center text-sm font-bold text-pink-400 sm:p-5"
-            >
-              🎁 Referral Rewards
-            </a>
-
-            <a
-              href="/rules"
-              className="rounded-xl border border-slate-400 p-4 text-center text-sm font-bold text-slate-300 sm:p-5"
-            >
-              📜 Rules
-            </a>
-
-            <a
-              href="/notifications"
-              className="rounded-xl border border-cyan-300 p-4 text-center text-sm font-bold text-cyan-300 sm:p-5"
-            >
-              🔔 Notifications
-            </a>
-
-            <a
-              href="/support"
-              className="rounded-xl border border-red-400 p-4 text-center text-sm font-bold text-red-400 sm:p-5"
-            >
-              🎧 Support
-            </a>
           </div>
-
-          <a
-            href="/deposit-history"
-            className="mt-3 block rounded-xl border border-cyan-400 bg-cyan-400/10 p-4 text-center text-sm font-bold text-cyan-400 sm:mt-5 sm:p-5"
-          >
-            📋 Deposit History
-          </a>
-        </div>
+        </section>
 
         {/* Account Information */}
-        <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 sm:mt-10 sm:p-6">
-
-          <h3 className="text-lg font-bold sm:text-xl">
+        <section className="bg-white rounded-2xl shadow p-5">
+          <h2 className="text-lg font-bold text-slate-800 mb-4">
             Account Information
-          </h3>
+          </h2>
 
-          <div className="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between border-b pb-3">
+              <span className="text-slate-500">Current Plan</span>
+              <span className="font-semibold text-slate-800">
+                {planName}
+              </span>
+            </div>
 
-            <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3 sm:pb-4">
-              <span className="text-xs text-slate-400 sm:text-sm">
+            <div className="flex justify-between border-b pb-3">
+              <span className="text-slate-500">
                 Available Balance
               </span>
-
-              <span className="text-right text-sm font-bold text-green-400 sm:text-base">
-                {money(balance)}
+              <span className="font-semibold text-green-600">
+                Rs {balance.toLocaleString()}
               </span>
             </div>
 
-            <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3 sm:pb-4">
-              <span className="text-xs text-slate-400 sm:text-sm">
-                Earned Balance
+            <div className="flex justify-between">
+              <span className="text-slate-500">
+                Total Earnings
               </span>
-
-              <span className="text-right text-sm font-bold text-green-400 sm:text-base">
-                {money(totalEarnings)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3 sm:pb-4">
-              <span className="text-xs text-slate-400 sm:text-sm">
-                Locked Balance
-              </span>
-
-              <span className="text-right text-sm font-bold text-yellow-400 sm:text-base">
-                {money(lockedBalance)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-slate-400 sm:text-sm">
-                Total Withdrawal
-              </span>
-
-              <span className="text-right text-sm font-bold text-orange-400 sm:text-base">
-                {money(totalWithdrawal)}
+              <span className="font-semibold text-blue-600">
+                Rs {totalEarnings.toLocaleString()}
               </span>
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Notice */}
-        <div className="mt-5 rounded-xl border border-cyan-400/20 bg-cyan-400/5 p-4 text-xs leading-6 text-slate-300 sm:mt-8 sm:p-5 sm:text-sm">
-          <strong className="text-cyan-400">
-            Account Balance:
-          </strong>{" "}
-          Available Balance is loaded from your secure account wallet.
-          Earned Balance shows recorded earnings separately and is not
-          automatically added to the withdrawable wallet.
-        </div>
+        <section className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5">
+          <h2 className="font-bold text-yellow-800">
+            Important Notice
+          </h2>
+
+          <p className="text-sm text-yellow-700 mt-2">
+            Please review your account activity and transaction
+            information regularly.
+          </p>
+        </section>
 
       </div>
     </main>
