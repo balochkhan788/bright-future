@@ -21,7 +21,11 @@ export default function AdminSupport() {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [reply, setReply] = useState("");
   const [loading, setLoading] = useState(true);
+
   const [sending, setSending] = useState(false);
+
+  // Users whose latest message is new/unread
+  const [unreadUsers, setUnreadUsers] = useState<string[]>([]);
 
   async function loadMessages() {
     const { data, error } = await supabase
@@ -49,10 +53,23 @@ export default function AdminSupport() {
           table: "support_messages",
         },
         (payload) => {
-          setMessages((current) => [
-            ...current,
-            payload.new as SupportMessage,
-          ]);
+          const newMessage = payload.new as SupportMessage;
+
+          setMessages((current) => [...current, newMessage]);
+
+          // Only user messages are considered unread
+          if (
+            newMessage.sender_role === "user" &&
+            newMessage.user_id !== selectedUser
+          ) {
+            setUnreadUsers((current) => {
+              if (current.includes(newMessage.user_id)) {
+                return current;
+              }
+
+              return [...current, newMessage.user_id];
+            });
+          }
         }
       )
       .subscribe();
@@ -60,7 +77,7 @@ export default function AdminSupport() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [selectedUser]);
 
   const conversations: Conversation[] = [];
 
@@ -82,6 +99,15 @@ export default function AdminSupport() {
   const selectedConversation = conversations.find(
     (conversation) => conversation.user_id === selectedUser
   );
+
+  function selectUser(userId: string) {
+    setSelectedUser(userId);
+
+    // Mark this user's messages as read
+    setUnreadUsers((current) =>
+      current.filter((id) => id !== userId)
+    );
+  }
 
   async function sendReply(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -152,11 +178,15 @@ export default function AdminSupport() {
                         conversation.messages.length - 1
                       ];
 
+                    const isUnread = unreadUsers.includes(
+                      conversation.user_id
+                    );
+
                     return (
                       <button
                         key={conversation.user_id}
                         onClick={() =>
-                          setSelectedUser(conversation.user_id)
+                          selectUser(conversation.user_id)
                         }
                         className={`w-full rounded-xl p-4 text-left ${
                           selectedUser === conversation.user_id
@@ -164,9 +194,17 @@ export default function AdminSupport() {
                             : "bg-white/10 text-white"
                         }`}
                       >
-                        <p className="break-all text-sm font-semibold">
-                          {conversation.user_id}
-                        </p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="break-all text-sm font-semibold">
+                            {conversation.user_id}
+                          </p>
+
+                          {isUnread && (
+                            <span className="shrink-0 rounded-full bg-red-500 px-2 py-1 text-[10px] font-bold text-white">
+                              NEW
+                            </span>
+                          )}
+                        </div>
 
                         <p className="mt-1 truncate text-xs opacity-70">
                           {lastMessage.message}
