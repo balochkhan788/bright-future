@@ -433,6 +433,13 @@ export default function Dashboard() {
               Profile
             </Link>
 
+            <Link
+              href="/support-partner"
+              className="bg-teal-600 text-white rounded-xl p-4 text-center font-semibold"
+            >
+              Support Partner
+            </Link>
+
           </div>
 
         </section>
