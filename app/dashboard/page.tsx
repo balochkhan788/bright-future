@@ -113,16 +113,6 @@ export default function Dashboard() {
 
         setTotalEarnings(total);
 
-        // Referral Bonus
-        const referralTotal = earnings
-          .filter((item) => item.earning_type === "referral")
-          .reduce(
-            (sum, item) => sum + Number(item.amount || 0),
-            0
-          );
-
-        setReferralBonus(referralTotal);
-
         // Today's Earnings
         const today = new Date();
 
@@ -142,6 +132,32 @@ export default function Dashboard() {
           );
 
         setTodayEarnings(todayTotal);
+      }
+
+      // Available Promotional Referral Bonus
+      const {
+        data: referralRewards,
+        error: referralRewardsError,
+      } = await supabase
+        .from("referral_rewards")
+        .select("amount, status")
+        .eq("user_id", user.id)
+        .eq("status", "approved");
+
+      if (referralRewardsError) {
+        console.log(
+          "Referral rewards error:",
+          referralRewardsError
+        );
+      }
+
+      if (referralRewards) {
+        const referralTotal = referralRewards.reduce(
+          (sum, item) => sum + Number(item.amount || 0),
+          0
+        );
+
+        setReferralBonus(referralTotal);
       }
     } catch (error) {
       console.log("Dashboard error:", error);
@@ -366,11 +382,11 @@ export default function Dashboard() {
 
           <div className="mt-5 grid gap-5 md:grid-cols-3">
 
-            {/* Referral */}
+            {/* Available Bonus */}
             <div className="rounded-2xl border border-violet-400/20 bg-violet-400/5 p-6">
 
               <p className="text-sm text-slate-400">
-                Referral Bonus
+                Available Bonus
               </p>
 
               <p className="mt-3 text-3xl font-bold text-violet-400">
@@ -380,12 +396,12 @@ export default function Dashboard() {
               </p>
 
               <p className="mt-2 text-sm text-slate-400">
-                Referral earnings
+                Approved promotional rewards
               </p>
 
             </div>
 
-            {/* Today */}
+            {/* Today's Earnings */}
             <div className="rounded-2xl border border-green-400/20 bg-green-400/5 p-6">
 
               <p className="text-sm text-slate-400">
@@ -404,7 +420,7 @@ export default function Dashboard() {
 
             </div>
 
-            {/* Total */}
+            {/* Total Earnings */}
             <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-6">
 
               <p className="text-sm text-slate-400">
