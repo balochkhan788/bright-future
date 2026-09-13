@@ -13,9 +13,18 @@ export default function SignupPage() {
 
     const form = e.currentTarget;
 
-    const name = (form.elements.namedItem("name") as HTMLInputElement).value;
-    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
-    const password = (form.elements.namedItem("password") as HTMLInputElement).value;
+    const name = (
+      form.elements.namedItem("name") as HTMLInputElement
+    ).value;
+
+    const email = (
+      form.elements.namedItem("email") as HTMLInputElement
+    ).value;
+
+    const password = (
+      form.elements.namedItem("password") as HTMLInputElement
+    ).value;
+
     const confirmPassword = (
       form.elements.namedItem("confirmPassword") as HTMLInputElement
     ).value;
@@ -28,12 +37,21 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
+      // Referral code URL se lena
+      let referralCode = "";
+
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        referralCode = params.get("ref") || "";
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: name,
+            referral_code: referralCode || null,
           },
         },
       });
@@ -51,7 +69,9 @@ export default function SignupPage() {
       );
     } catch (error) {
       console.error("SIGNUP ERROR:", error);
-      setMessage("Failed to fetch. Please check your Supabase connection.");
+      setMessage(
+        "Failed to fetch. Please check your Supabase connection."
+      );
     } finally {
       setLoading(false);
     }
@@ -77,7 +97,10 @@ export default function SignupPage() {
             Sign Up
           </h2>
 
-          <form onSubmit={handleSignup} className="space-y-5">
+          <form
+            onSubmit={handleSignup}
+            className="space-y-5"
+          >
 
             <div>
               <label className="mb-2 block text-sm text-slate-300">
@@ -140,7 +163,9 @@ export default function SignupPage() {
               disabled={loading}
               className="w-full rounded-lg bg-cyan-500 py-3 font-bold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
             >
-              {loading ? "Creating Account..." : "Create Account"}
+              {loading
+                ? "Creating Account..."
+                : "Create Account"}
             </button>
 
           </form>
@@ -153,7 +178,10 @@ export default function SignupPage() {
 
           <p className="mt-6 text-center text-sm text-slate-400">
             Already have an account?{" "}
-            <a href="/login" className="text-cyan-400">
+            <a
+              href="/login"
+              className="text-cyan-400"
+            >
               Login
             </a>
           </p>
