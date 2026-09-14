@@ -1,18 +1,25 @@
 {
   "name": "Bright Future",
   "short_name": "Bright Future",
-  "description": "Bright Future investment application",
+  "description": "Bright Future application",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0d6efd",
+  "background_color": "#020617",
+  "theme_color": "#06b6d4",
   "scope": "/",
   "orientation": "any",
   "icons": [
-    {
-      "src": "/favicon.ico",
-      "sizes": "256x256",
-      "type": "image/x-icon"
-    }
-  ]
+  {
+    "src": "/icons/icon-192.png",
+    "sizes": "192x192",
+    "type": "image/png",
+    "purpose": "any"
+  },
+  {
+    "src": "/icons/icon-512.png",
+    "sizes": "512x512",
+    "type": "image/png",
+    "purpose": "any maskable"
+  }
+]
 }

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -22,6 +22,8 @@ export default function Dashboard() {
   const [userName, setUserName] = useState("User");
   const [loading, setLoading] = useState(true);
   const [slide, setSlide] = useState(0);
+
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
 
   const slides: Slide[] = [
     {
@@ -52,6 +54,37 @@ export default function Dashboard() {
 
     return () => clearInterval(timer);
   }, [slides.length]);
+
+  useEffect(() => {
+    const handler = (event: any) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+    };
+
+    window.addEventListener("beforeinstallprompt", handler);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+    };
+  }, []);
+
+  async function installApp() {
+  if (installPrompt) {
+    installPrompt.prompt();
+
+    const result = await installPrompt.userChoice;
+
+    if (result.outcome === "accepted") {
+      setInstallPrompt(null);
+    }
+
+    return;
+  }
+
+  alert(
+    "Install option is not available right now. Please use Chrome menu to install Bright Future."
+  );
+}
 
   async function loadDashboard() {
     try {
@@ -171,7 +204,6 @@ export default function Dashboard() {
   return (
     <main className="min-h-screen bg-slate-100">
 
-      {/* Header */}
       <header className="bg-white border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
 
@@ -200,8 +232,42 @@ export default function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-4 py-5 space-y-5">
 
-        {/* Slideshow */}
-        <section className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-6 shadow-lg">
+        {installPrompt && (
+          async function installApp() {
+  if (installPrompt) {
+    installPrompt.prompt();
+
+    const result = await installPrompt.userChoice;
+
+    if (result.outcome === "accepted") {
+      setInstallPrompt(null);
+    }
+
+    return;
+  }
+
+  alert(
+    "Install option is not available right now. Please use Chrome menu to install Bright Future."
+  );
+}
+        )}
+
+        <section className="bg-gradient-t
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        o-r from-blue-600 to-indigo-700 text-white rounded-2xl p-6 shadow-lg">
 
           <div className="min-h-[150px] flex flex-col justify-center">
 
@@ -238,7 +304,6 @@ export default function Dashboard() {
 
         </section>
 
-        {/* Welcome */}
         <section className="bg-white rounded-2xl shadow p-5">
 
           <p className="text-sm text-slate-500">
@@ -255,7 +320,6 @@ export default function Dashboard() {
 
         </section>
 
-        {/* Account Summary */}
         <section>
 
           <h2 className="text-lg font-bold text-slate-800 mb-3">
@@ -318,7 +382,6 @@ export default function Dashboard() {
 
         </section>
 
-        {/* Earnings Overview */}
         <section>
 
           <h2 className="text-lg font-bold text-slate-800 mb-3">
@@ -361,7 +424,6 @@ export default function Dashboard() {
 
         </section>
 
-        {/* Quick Actions */}
         <section>
 
           <h2 className="text-lg font-bold text-slate-800 mb-3">
@@ -390,7 +452,13 @@ export default function Dashboard() {
             >
               Withdraw
             </Link>
-
+<button
+  type="button"
+  onClick={installApp}
+  className="col-span-2 lg:col-span-4 w-full rounded-xl bg-cyan-500 p-4 font-bold text-slate-950 shadow-lg cursor-pointer"
+>
+  📲 Install Bright Future App
+</button>
             <Link
               href="/transactions"
               className="bg-purple-600 text-white rounded-xl p-4 text-center font-semibold"
@@ -444,7 +512,6 @@ export default function Dashboard() {
 
         </section>
 
-        {/* Account Information */}
         <section className="bg-white rounded-2xl shadow p-5">
 
           <h2 className="text-lg font-bold text-slate-800 mb-4">
@@ -487,7 +554,6 @@ export default function Dashboard() {
 
         </section>
 
-        {/* Notice */}
         <section className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5">
 
           <h2 className="font-bold text-yellow-800">
@@ -495,8 +561,7 @@ export default function Dashboard() {
           </h2>
 
           <p className="text-sm text-yellow-700 mt-2">
-            Please review your account activity and transaction
-            information regularly.
+            Please review your account activity and transaction information regularly.
           </p>
 
         </section>
