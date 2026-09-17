@@ -1,16 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 const rewards = [
   "Rs. 200",
   "Rs. 400",
   "Rs. 600",
   "Rs. 800",
-  "Rs. 1000",
-  "Rs. 1200",
-  "Rs. 1400",
-  "Rs. 1600",
+  "Rs. 1,200",
+  "Rs. 1,500",
+  "Rs. 2,000",
 ];
 
 const colors = [
@@ -21,27 +21,39 @@ const colors = [
   "#06b6d4",
   "#3b82f6",
   "#8b5cf6",
-  "#ec4899",
 ];
 
 export default function SpinWheelPage() {
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [winner, setWinner] = useState("");
+  const [message, setMessage] = useState("");
 
-  function spin() {
+  async function spin() {
     if (spinning) return;
 
-    const index = Math.floor(Math.random() * rewards.length);
+    setWinner("");
+    setMessage("");
+    setSpinning(true);
+
+    const { data, error } = await supabase.rpc("spin_wheel_now");
+
+    if (error) {
+      setSpinning(false);
+      setMessage(error.message);
+      return;
+    }
+
+    const index = Number(data.index);
+    const reward = data.reward;
+
     const newRotation =
       rotation + 1800 + (360 - index * 45 - 22.5);
 
-    setWinner("");
-    setSpinning(true);
     setRotation(newRotation);
 
     setTimeout(function () {
-      setWinner(rewards[index]);
+      setWinner(reward);
       setSpinning(false);
     }, 4000);
   }
@@ -51,14 +63,13 @@ export default function SpinWheelPage() {
 
   const wheelBackground =
     "conic-gradient(" +
-    colors[0] + " 0deg 45deg, " +
-    colors[1] + " 45deg 90deg, " +
-    colors[2] + " 90deg 135deg, " +
-    colors[3] + " 135deg 180deg, " +
-    colors[4] + " 180deg 225deg, " +
-    colors[5] + " 225deg 270deg, " +
-    colors[6] + " 270deg 315deg, " +
-    colors[7] + " 315deg 360deg)";
+    colors[0] + " 0deg 51.43deg, " +
+    colors[1] + " 51.43deg 102.86deg, " +
+    colors[2] + " 102.86deg 154.29deg, " +
+    colors[3] + " 154.29deg 205.72deg, " +
+    colors[4] + " 205.72deg 257.15deg, " +
+    colors[5] + " 257.15deg 308.58deg, " +
+    colors[6] + " 308.58deg 360deg)";
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white">
@@ -102,7 +113,8 @@ export default function SpinWheelPage() {
             {/* Amounts inside wheel */}
             {rewards.map(function (amount, index) {
 
-              const angle = index * 45 + 22.5;
+              const angle = index * (360 / rewards.length) +
+                (180 / rewards.length);
 
               const amountTransform =
                 "translate(-50%, -50%) " +
@@ -142,6 +154,13 @@ export default function SpinWheelPage() {
           </div>
         </div>
 
+        {/* Error / Message */}
+        {message && (
+          <div className="mt-6 rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-center text-red-300">
+            {message}
+          </div>
+        )}
+
         {/* Spin Button */}
         <button
           onClick={spin}
@@ -161,6 +180,10 @@ export default function SpinWheelPage() {
 
             <p className="mt-2 text-4xl font-bold text-green-400">
               {winner}
+            </p>
+
+            <p className="mt-2 text-sm text-green-300">
+              Reward added to your available balance.
             </p>
 
           </div>

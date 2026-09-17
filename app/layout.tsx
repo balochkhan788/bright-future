@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   title: "Bright Future",
   description: "Bright Future investment application",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

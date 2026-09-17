@@ -10,6 +10,15 @@ type Slide = {
   description: string;
 };
 
+const slideImages = [
+  "/slide/1.jpg",
+  "/slide/2.jpg",
+  "/slide/3.jpg",
+  "/slide/4.jpg",
+  "/slide/5.jpg",
+  "/slide/6.jpg",
+];
+
 export default function Dashboard() {
   const [balance, setBalance] = useState(0);
   const [lockedBalance, setLockedBalance] = useState(0);
@@ -49,11 +58,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setSlide((prev) => (prev + 1) % slides.length);
+      setSlide((prev) => (prev + 1) % slideImages.length);
     }, 4000);
 
     return () => clearInterval(timer);
-  }, [slides.length]);
+  }, []);
 
   useEffect(() => {
     const handler = (event: any) => {
@@ -69,22 +78,22 @@ export default function Dashboard() {
   }, []);
 
   async function installApp() {
-  if (installPrompt) {
-    installPrompt.prompt();
+    if (installPrompt) {
+      installPrompt.prompt();
 
-    const result = await installPrompt.userChoice;
+      const result = await installPrompt.userChoice;
 
-    if (result.outcome === "accepted") {
-      setInstallPrompt(null);
+      if (result.outcome === "accepted") {
+        setInstallPrompt(null);
+      }
+
+      return;
     }
 
-    return;
+    alert(
+      "Install option is not available right now. Please use Chrome menu to install Bright Future."
+    );
   }
-
-  alert(
-    "Install option is not available right now. Please use Chrome menu to install Bright Future."
-  );
-}
 
   async function loadDashboard() {
     try {
@@ -205,6 +214,7 @@ export default function Dashboard() {
     <main className="min-h-screen bg-slate-100">
 
       <header className="bg-white border-b shadow-sm">
+
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
 
           <div>
@@ -232,73 +242,33 @@ export default function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-4 py-5 space-y-5">
 
-        {installPrompt && (
-          async function installApp() {
-  if (installPrompt) {
-    installPrompt.prompt();
+        <section className="bg-white rounded-2xl shadow-lg overflow-hidden">
 
-    const result = await installPrompt.userChoice;
+          <div className="relative w-full h-56 sm:h-72 md:h-80">
 
-    if (result.outcome === "accepted") {
-      setInstallPrompt(null);
-    }
+            <img
+              src={slideImages[slide]}
+              alt={"Bright Future Slide " + (slide + 1)}
+              className="w-full h-full object-cover"
+            />
 
-    return;
-  }
+            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
 
-  alert(
-    "Install option is not available right now. Please use Chrome menu to install Bright Future."
-  );
-}
-        )}
+              {slideImages.map((_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => setSlide(index)}
+                  aria-label={"Slide " + (index + 1)}
+                  className={
+                    slide === index
+                      ? "h-3 w-8 rounded-full bg-white shadow"
+                      : "h-3 w-3 rounded-full bg-white/60"
+                  }
+                />
+              ))}
 
-        <section className="bg-gradient-t
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        o-r from-blue-600 to-indigo-700 text-white rounded-2xl p-6 shadow-lg">
-
-          <div className="min-h-[150px] flex flex-col justify-center">
-
-            <p className="text-sm opacity-90 mb-1">
-              {slides[slide].title1}
-            </p>
-
-            <h2 className="text-2xl sm:text-3xl font-bold">
-              {slides[slide].title2}
-            </h2>
-
-            <p className="mt-3 text-sm sm:text-base opacity-90">
-              {slides[slide].description}
-            </p>
-
-          </div>
-
-          <div className="flex justify-center gap-2 mt-4">
-
-            {slides.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => setSlide(index)}
-                aria-label={"Slide " + (index + 1)}
-                className={
-                  slide === index
-                    ? "h-2 w-7 rounded-full bg-white"
-                    : "h-2 w-2 rounded-full bg-white/50"
-                }
-              />
-            ))}
+            </div>
 
           </div>
 
@@ -434,79 +404,92 @@ export default function Dashboard() {
 
             <Link
               href="/plans"
-              className="bg-blue-600 text-white rounded-xl p-4 text-center font-semibold"
+              className="bg-blue-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
+              <div className="text-3xl mb-2">📋</div>
               Plans
             </Link>
 
             <Link
               href="/deposit"
-              className="bg-green-600 text-white rounded-xl p-4 text-center font-semibold"
+              className="bg-green-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
+              <div className="text-3xl mb-2">💰</div>
               Deposit
             </Link>
 
             <Link
               href="/withdraw"
-              className="bg-orange-500 text-white rounded-xl p-4 text-center font-semibold"
+              className="bg-orange-500 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
+              <div className="text-3xl mb-2">💸</div>
               Withdraw
             </Link>
-<button
-  type="button"
-  onClick={installApp}
-  className="col-span-2 lg:col-span-4 w-full rounded-xl bg-cyan-500 p-4 font-bold text-slate-950 shadow-lg cursor-pointer"
->
-  📲 Install Bright Future App
-</button>
+
             <Link
               href="/transactions"
-              className="bg-purple-600 text-white rounded-xl p-4 text-center font-semibold"
+              className="bg-purple-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
+              <div className="text-3xl mb-2">📊</div>
               Transactions
             </Link>
 
             <Link
               href="/task"
-              className="bg-indigo-600 text-white rounded-xl p-4 text-center font-semibold"
+              className="bg-indigo-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
+              <div className="text-3xl mb-2">🎯</div>
               Daily Task
             </Link>
 
             <Link
               href="/referral"
-              className="bg-pink-600 text-white rounded-xl p-4 text-center font-semibold"
+              className="bg-pink-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
+              <div className="text-3xl mb-2">👥</div>
               Referral
             </Link>
 
             <Link
               href="/referral-rewards"
-              className="bg-rose-600 text-white rounded-xl p-4 text-center font-semibold"
+              className="bg-rose-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
+              <div className="text-3xl mb-2">🎁</div>
               Referral Rewards
             </Link>
 
             <Link
               href="/spin-wheel"
-              className="bg-cyan-600 text-white rounded-xl p-4 text-center font-semibold"
+              className="bg-cyan-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
+              <div className="text-3xl mb-2">🎡</div>
               Spin Wheel
             </Link>
 
             <Link
               href="/profile"
-              className="bg-slate-700 text-white rounded-xl p-4 text-center font-semibold"
+              className="bg-slate-700 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
+              <div className="text-3xl mb-2">👤</div>
               Profile
             </Link>
 
             <Link
               href="/support-partner"
-              className="bg-teal-600 text-white rounded-xl p-4 text-center font-semibold"
+              className="bg-teal-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
+              <div className="text-3xl mb-2">🤝</div>
               Support Partner
             </Link>
+
+            <button
+              type="button"
+              onClick={installApp}
+              className="col-span-2 lg:col-span-4 w-full rounded-xl bg-cyan-500 p-4 font-bold text-slate-950 shadow-lg hover:scale-[1.02] transition cursor-pointer"
+            >
+              <div className="text-3xl mb-1">📲</div>
+              Install Bright Future App
+            </button>
 
           </div>
 
