@@ -8,18 +8,37 @@ type Plan = {
   today_earning: number;
 };
 
+type Task = {
+  task_number: number;
+  completed: boolean;
+};
+
+const TASKS_PER_PLAN: Record<string, number> = {
+  "G-1": 4,
+  "G-2": 6,
+  "G-3": 8,
+  "G-4": 10,
+  "G-5": 20,
+  "G-6": 40,
+  "G-7": 60,
+};
+
+const TASK_EARNING = 50;
+const COUNTDOWN_SECONDS = 10;
+
 export default function TaskPage() {
   const [plan, setPlan] = useState<Plan | null>(null);
-  const [completed, setCompleted] = useState(false);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [working, setWorking] = useState(false);
+  const [workingTask, setWorkingTask] = useState<number | null>(null);
+  const [countdown, setCountdown] = useState(0);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    loadTask();
+    loadTasks();
   }, []);
 
-  async function loadTask() {
+  async function loadTasks() {
     setLoading(true);
     setMessage("");
 
@@ -49,45 +68,67 @@ export default function TaskPage() {
       return;
     }
 
-    if (planResult.data) {
-      setPlan({
-        plan_name: planResult.data.plan_name,
-        today_earning: Number(planResult.data.today_earning),
-      });
+    if (!planResult.data) {
+      setPlan(null);
+      setLoading(false);
+      return;
     }
 
-    // Check today's task
+    const activePlan: Plan = {
+      plan_name: planResult.data.plan_name,
+      today_earning: Number(planResult.data.today_earning),
+    };
+
+    setPlan(activePlan);
+
+    const taskCount =
+      TASKS_PER_PLAN[activePlan.plan_name] || 0;
+
+    // Today's date
     const now = new Date();
 
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const day = String(now.getDate()).padStart(2, "0");
 
-    const todayDate = year + "-" + month + "-" + day;
+    const todayDate =
+      year + "-" + month + "-" + day;
 
+    // Get today's completed tasks
     const taskResult = await supabase
       .from("daily_tasks")
-      .select("id")
+      .select("task_number")
       .eq("user_id", user.id)
       .eq("task_date", todayDate)
-      .limit(1);
+      .order("task_number", { ascending: true });
 
     if (taskResult.error) {
       setMessage(taskResult.error.message);
+      setLoading(false);
+      return;
     }
 
-    if (
-      taskResult.data &&
-      taskResult.data.length > 0
-    ) {
-      setCompleted(true);
+    const completedNumbers = new Set(
+      (taskResult.data || []).map(
+        (item) => Number(item.task_number)
+      )
+    );
+
+    const taskList: Task[] = [];
+
+    for (let i = 1; i <= taskCount; i++) {
+      taskList.push({
+        task_number: i,
+        completed: completedNumbers.has(i),
+      });
     }
 
+    setTasks(taskList);
     setLoading(false);
   }
 
-  async function completeTask() {
-    if (working) {
+  async function completeTask(taskNumber: number) {
+    if (workingTask !== null) {
       return;
     }
 
@@ -98,43 +139,94 @@ export default function TaskPage() {
       return;
     }
 
-    if (completed) {
-      setMessage("Today's task is already completed.");
+    const selectedTask = tasks.find(
+      (task) => task.task_number === taskNumber
+    );
+
+    if (!selectedTask) {
       return;
     }
 
-    setWorking(true);
+    if (selectedTask.completed) {
+      setMessage(
+        "This task has already been completed today."
+      );
+      return;
+    }
+
+    // Start 10 second countdown
+    setWorkingTask(taskNumber);
+    setCountdown(COUNTDOWN_SECONDS);
+
+    let remaining = COUNTDOWN_SECONDS;
+
+    const timer = setInterval(() => {
+      remaining -= 1;
+      setCountdown(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    // Wait 10 seconds
+    await new Promise((resolve) =>
+      setTimeout(resolve, COUNTDOWN_SECONDS * 1000)
+    );
 
     const result = await supabase.rpc(
-      "complete_daily_task"
+      "complete_daily_task",
+      {
+        p_task_number: taskNumber,
+      }
     );
 
     if (result.error) {
       setMessage(result.error.message);
-      setWorking(false);
+      setWorkingTask(null);
+      setCountdown(0);
       return;
     }
 
-    setCompleted(true);
-
-    const earning = Number(
-      result.data?.earning || plan.today_earning
+    // Mark task completed
+    setTasks((currentTasks) =>
+      currentTasks.map((task) =>
+        task.task_number === taskNumber
+          ? { ...task, completed: true }
+          : task
+      )
     );
+
+    setWorkingTask(null);
+    setCountdown(0);
 
     setMessage(
-      "Today's task completed successfully. Rs. " +
-        earning.toLocaleString() +
-        " has been credited to your wallet."
+      "Task #" +
+        taskNumber +
+        " completed successfully. Rs. " +
+        TASK_EARNING.toLocaleString() +
+        " credited to your wallet."
     );
-
-    setWorking(false);
   }
+
+  const completedCount = tasks.filter(
+    (task) => task.completed
+  ).length;
+
+  const totalCount = tasks.length;
+
+  const totalEarned =
+    completedCount * TASK_EARNING;
 
   if (loading) {
     return (
       <main className="min-h-screen bg-slate-950 p-6 text-white">
-        <div className="mx-auto max-w-3xl">
-          <p>Loading...</p>
+        <div className="mx-auto max-w-4xl">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+            <p className="text-slate-300">
+              Loading Daily Tasks...
+            </p>
+          </div>
         </div>
       </main>
     );
@@ -142,45 +234,52 @@ export default function TaskPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 p-4 text-white md:p-6">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-5xl">
 
-        <h1 className="text-4xl font-bold">
-          Bright{" "}
-          <span className="text-cyan-400">
-            Future
-          </span>
-        </h1>
+        {/* HEADER */}
+        <div className="text-center">
+          <h1 className="text-4xl font-bold">
+            Bright{" "}
+            <span className="text-cyan-400">
+              Future
+            </span>
+          </h1>
 
-        <p className="mt-2 text-slate-400">
-          Daily Task
-        </p>
+          <p className="mt-2 text-slate-400">
+            Daily Tasks
+          </p>
+        </div>
 
         {!plan ? (
-          <div className="mt-8 rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-6">
+          <div className="mt-8 rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-8 text-center">
 
-            <h2 className="text-2xl font-bold text-yellow-400">
+            <div className="text-5xl">
+              📋
+            </div>
+
+            <h2 className="mt-4 text-2xl font-bold text-yellow-400">
               No Active Plan
             </h2>
 
             <p className="mt-3 text-slate-300">
               Please activate a plan before completing
-              your daily task.
+              daily tasks.
             </p>
 
             <a
               href="/plans"
-              className="mt-6 inline-block rounded-lg bg-cyan-500 px-6 py-3 font-bold text-slate-950"
+              className="mt-6 inline-block rounded-xl bg-cyan-500 px-6 py-3 font-bold text-slate-950"
             >
               View Plans
             </a>
 
           </div>
         ) : (
-          <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
+          <>
+            {/* PLAN SUMMARY */}
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
 
-            <div className="grid gap-6 md:grid-cols-3">
-
-              <div>
+              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-5">
                 <p className="text-sm text-slate-400">
                   Active Plan
                 </p>
@@ -190,52 +289,225 @@ export default function TaskPage() {
                 </p>
               </div>
 
-              <div>
+              <div className="rounded-2xl border border-green-400/20 bg-green-400/10 p-5">
                 <p className="text-sm text-slate-400">
-                  Daily Earning
+                  Tasks Completed
                 </p>
 
-                <p className="mt-2 text-2xl font-bold text-green-400">
-                  Rs. {plan.today_earning.toLocaleString()}
+                <p className="mt-2 text-3xl font-bold text-green-400">
+                  {completedCount} / {totalCount}
                 </p>
               </div>
 
-              <div>
+              <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-5">
                 <p className="text-sm text-slate-400">
-                  Today&apos;s Status
+                  Today Earned
                 </p>
 
-                <p className="mt-2 text-xl font-bold">
-                  {completed ? "Completed" : "Available"}
+                <p className="mt-2 text-3xl font-bold text-yellow-400">
+                  Rs. {totalEarned.toLocaleString()}
                 </p>
               </div>
 
             </div>
 
-            <button
-              onClick={completeTask}
-              disabled={completed || working}
-              className="mt-8 w-full rounded-xl bg-cyan-500 px-6 py-4 text-lg font-bold text-slate-950 disabled:opacity-40"
-            >
-              {working
-                ? "Processing..."
-                : completed
-                ? "Today's Task Completed"
-                : "Complete Today's Task"}
-            </button>
+            {/* PROGRESS */}
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
 
+              <div className="mb-3 flex justify-between text-sm">
+                <span className="text-slate-400">
+                  Daily Progress
+                </span>
+
+                <span className="font-bold text-cyan-400">
+                  {completedCount} / {totalCount}
+                </span>
+              </div>
+
+              <div className="h-3 overflow-hidden rounded-full bg-slate-800">
+                <div
+                  className="h-full rounded-full bg-cyan-400 transition-all duration-500"
+                  style={{
+                    width:
+                      totalCount === 0
+                        ? "0%"
+                        : (completedCount /
+                            totalCount) *
+                            100 +
+                          "%",
+                  }}
+                />
+              </div>
+
+            </div>
+
+            {/* TASKS */}
+            <div className="mt-8">
+
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-2xl font-bold">
+                  Today&apos;s Tasks
+                </h2>
+
+                <span className="rounded-full bg-cyan-400/10 px-4 py-2 text-sm font-bold text-cyan-400">
+                  Rs. {TASK_EARNING} / Task
+                </span>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+
+                {tasks.map((task) => {
+
+                  const isWorking =
+                    workingTask ===
+                    task.task_number;
+
+                  return (
+                    <div
+                      key={task.task_number}
+                      className={
+                        "rounded-2xl border p-5 transition " +
+                        (
+                          task.completed
+                            ? "border-green-400/20 bg-green-400/5"
+                            : isWorking
+                            ? "border-yellow-400/30 bg-yellow-400/5"
+                            : "border-white/10 bg-white/5 hover:border-cyan-400/30"
+                        )
+                      }
+                    >
+
+                      <div className="flex items-center justify-between">
+
+                        <div>
+                          <p className="text-sm text-slate-400">
+                            Daily Task
+                          </p>
+
+                          <h3 className="mt-1 text-2xl font-bold">
+                            #{task.task_number}
+                          </h3>
+                        </div>
+
+                        <div className="text-3xl">
+                          {task.completed
+                            ? "✅"
+                            : isWorking
+                            ? "⏳"
+                            : "🎯"}
+                        </div>
+
+                      </div>
+
+                      <div className="mt-5">
+
+                        <p className="text-sm text-slate-400">
+                          Task Reward
+                        </p>
+
+                        <p className="mt-1 text-2xl font-bold text-green-400">
+                          Rs. {TASK_EARNING}
+                        </p>
+
+                      </div>
+
+                      {isWorking ? (
+                        <div className="mt-5">
+
+                          <div className="mb-2 flex justify-between text-sm">
+                            <span className="text-yellow-400">
+                              Completing...
+                            </span>
+
+                            <span className="font-bold text-yellow-400">
+                              {countdown}s
+                            </span>
+                          </div>
+
+                          <div className="h-3 overflow-hidden rounded-full bg-slate-800">
+                            <div
+                              className="h-full rounded-full bg-yellow-400 transition-all duration-1000"
+                              style={{
+                                width:
+                                  ((COUNTDOWN_SECONDS -
+                                    countdown) /
+                                    COUNTDOWN_SECONDS) *
+                                    100 +
+                                  "%",
+                              }}
+                            />
+                          </div>
+
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            completeTask(
+                              task.task_number
+                            )
+                          }
+                          disabled={task.completed}
+                          className={
+                            "mt-5 w-full rounded-xl px-4 py-3 font-bold transition " +
+                            (
+                              task.completed
+                                ? "cursor-not-allowed bg-green-500/20 text-green-400"
+                                : "bg-cyan-500 text-slate-950 hover:scale-[1.02]"
+                            )
+                          }
+                        >
+                          {task.completed
+                            ? "✓ Completed"
+                            : "Start Task"}
+                        </button>
+                      )}
+
+                    </div>
+                  );
+                })}
+
+              </div>
+            </div>
+
+            {/* MESSAGE */}
             {message !== "" && (
-              <div className="mt-5 rounded-xl bg-cyan-400/10 p-4 text-center text-cyan-300">
+              <div className="mt-6 rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-center text-cyan-300">
                 {message}
               </div>
             )}
 
-          </div>
+            {/* ALL COMPLETE */}
+            {completedCount === totalCount &&
+              totalCount > 0 && (
+                <div className="mt-6 rounded-2xl border border-green-400/20 bg-green-400/10 p-6 text-center">
+
+                  <div className="text-4xl">
+                    🎉
+                  </div>
+
+                  <h2 className="mt-3 text-2xl font-bold text-green-400">
+                    All Daily Tasks Completed
+                  </h2>
+
+                  <p className="mt-2 text-slate-300">
+                    Today&apos;s total task earning:
+                    {" "}
+                    <b className="text-green-400">
+                      Rs.{" "}
+                      {totalEarned.toLocaleString()}
+                    </b>
+                  </p>
+
+                </div>
+              )}
+          </>
         )}
 
+        {/* BACK */}
         <a
           href="/dashboard"
-          className="mt-8 inline-block rounded-lg bg-white/10 px-6 py-3 font-bold"
+          className="mt-8 inline-block rounded-xl bg-white/10 px-6 py-3 font-bold hover:bg-white/20"
         >
           ← Back to Dashboard
         </a>

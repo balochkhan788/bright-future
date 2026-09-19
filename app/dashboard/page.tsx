@@ -19,6 +19,18 @@ const slideImages = [
   "/slide/6.jpg",
 ];
 
+const TASKS_PER_PLAN: Record<string, number> = {
+  "G-1": 4,
+  "G-2": 6,
+  "G-3": 8,
+  "G-4": 10,
+  "G-5": 20,
+  "G-6": 40,
+  "G-7": 60,
+};
+
+const TASK_EARNING = 50;
+
 export default function Dashboard() {
   const [balance, setBalance] = useState(0);
   const [lockedBalance, setLockedBalance] = useState(0);
@@ -28,27 +40,36 @@ export default function Dashboard() {
   const [referralBonus, setReferralBonus] = useState(0);
 
   const [planName, setPlanName] = useState("No Active Plan");
+
+  const [dailyTaskTotal, setDailyTaskTotal] = useState(0);
+  const [dailyTaskCompleted, setDailyTaskCompleted] =
+    useState(0);
+
   const [userName, setUserName] = useState("User");
   const [loading, setLoading] = useState(true);
   const [slide, setSlide] = useState(0);
 
-  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [installPrompt, setInstallPrompt] =
+    useState<any>(null);
 
   const slides: Slide[] = [
     {
       title1: "Manage Your",
       title2: "Investments & Earnings",
-      description: "Track your account activity, balance and earnings.",
+      description:
+        "Track your account activity, balance and earnings.",
     },
     {
       title1: "Track Your",
       title2: "Account Balance",
-      description: "View your available, locked and earned balance.",
+      description:
+        "View your available, locked and earned balance.",
     },
     {
       title1: "Explore Your",
       title2: "Rewards & Tasks",
-      description: "Access available tasks, rewards and referral features.",
+      description:
+        "Access available tasks, rewards and referral features.",
     },
   ];
 
@@ -58,7 +79,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setSlide((prev) => (prev + 1) % slideImages.length);
+      setSlide(
+        (prev) => (prev + 1) % slideImages.length
+      );
     }, 4000);
 
     return () => clearInterval(timer);
@@ -70,10 +93,16 @@ export default function Dashboard() {
       setInstallPrompt(event);
     };
 
-    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener(
+      "beforeinstallprompt",
+      handler
+    );
 
     return () => {
-      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handler
+      );
     };
   }, []);
 
@@ -81,7 +110,8 @@ export default function Dashboard() {
     if (installPrompt) {
       installPrompt.prompt();
 
-      const result = await installPrompt.userChoice;
+      const result =
+        await installPrompt.userChoice;
 
       if (result.outcome === "accepted") {
         setInstallPrompt(null);
@@ -115,88 +145,209 @@ export default function Dashboard() {
 
       setUserName(name);
 
-      const { data: wallet } = await supabase
-        .from("wallets")
-        .select("available_balance, locked_balance")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      // WALLET
+      const { data: wallet } =
+        await supabase
+          .from("wallets")
+          .select(
+            "available_balance, locked_balance"
+          )
+          .eq("user_id", user.id)
+          .maybeSingle();
 
       if (wallet) {
-        setBalance(Number(wallet.available_balance || 0));
-        setLockedBalance(Number(wallet.locked_balance || 0));
+        setBalance(
+          Number(
+            wallet.available_balance || 0
+          )
+        );
+
+        setLockedBalance(
+          Number(
+            wallet.locked_balance || 0
+          )
+        );
       }
 
-      const { data: plan } = await supabase
-        .from("user_plans")
-        .select("plan_name")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // ACTIVE PLAN
+      const { data: plan } =
+        await supabase
+          .from("user_plans")
+          .select("plan_name")
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .order("created_at", {
+            ascending: false,
+          })
+          .limit(1)
+          .maybeSingle();
 
       if (plan) {
-        setPlanName(plan.plan_name || "Active Plan");
+        const activePlan =
+          plan.plan_name || "Active Plan";
+
+        setPlanName(activePlan);
+
+        const taskCount =
+          TASKS_PER_PLAN[activePlan] || 0;
+
+        setDailyTaskTotal(taskCount);
+
+        // TODAY'S TASKS
+        const now = new Date();
+
+        const year =
+          now.getFullYear();
+
+        const month = String(
+          now.getMonth() + 1
+        ).padStart(2, "0");
+
+        const day = String(
+          now.getDate()
+        ).padStart(2, "0");
+
+        const todayDate =
+          year +
+          "-" +
+          month +
+          "-" +
+          day;
+
+        const { data: taskData } =
+          await supabase
+            .from("daily_tasks")
+            .select("task_number")
+            .eq("user_id", user.id)
+            .eq(
+              "task_date",
+              todayDate
+            );
+
+        const completedTasks =
+          taskData?.length || 0;
+
+        setDailyTaskCompleted(
+          completedTasks
+        );
+      } else {
+        setDailyTaskTotal(0);
+        setDailyTaskCompleted(0);
       }
 
-      const { data: withdrawals } = await supabase
-        .from("withdrawals")
-        .select("amount")
-        .eq("user_id", user.id)
-        .eq("status", "approved");
+      // WITHDRAWALS
+      const { data: withdrawals } =
+        await supabase
+          .from("withdrawals")
+          .select("amount")
+          .eq("user_id", user.id)
+          .eq("status", "approved");
 
       const withdrawalTotal =
         withdrawals?.reduce(
-          (sum, item) => sum + Number(item.amount || 0),
+          (sum, item) =>
+            sum +
+            Number(
+              item.amount || 0
+            ),
           0
         ) || 0;
 
-      setTotalWithdrawal(withdrawalTotal);
+      setTotalWithdrawal(
+        withdrawalTotal
+      );
 
-      const { data: earnings } = await supabase
-        .from("earnings")
-        .select("amount, created_at")
-        .eq("user_id", user.id);
+      // EARNINGS
+      const { data: earnings } =
+        await supabase
+          .from("earnings")
+          .select(
+            "amount, created_at"
+          )
+          .eq("user_id", user.id);
 
       const allEarnings =
         earnings?.reduce(
-          (sum, item) => sum + Number(item.amount || 0),
+          (sum, item) =>
+            sum +
+            Number(
+              item.amount || 0
+            ),
           0
         ) || 0;
 
-      setTotalEarnings(allEarnings);
+      setTotalEarnings(
+        allEarnings
+      );
 
-      const today = new Date().toISOString().split("T")[0];
+      const today =
+        new Date()
+          .toISOString()
+          .split("T")[0];
 
       const todayTotal =
         earnings
-          ?.filter((item) => item.created_at?.startsWith(today))
+          ?.filter((item) =>
+            item.created_at?.startsWith(
+              today
+            )
+          )
           .reduce(
-            (sum, item) => sum + Number(item.amount || 0),
+            (sum, item) =>
+              sum +
+              Number(
+                item.amount || 0
+              ),
             0
           ) || 0;
 
-      setTodayEarnings(todayTotal);
+      setTodayEarnings(
+        todayTotal
+      );
 
-      const { data: rewards } = await supabase
-        .from("referral_rewards")
-        .select("amount")
-        .eq("user_id", user.id)
-        .eq("status", "approved");
+      // REFERRAL BONUS
+      const { data: rewards } =
+        await supabase
+          .from("referral_rewards")
+          .select("amount")
+          .eq("user_id", user.id)
+          .eq("status", "approved");
 
       const approvedRewards =
         rewards?.reduce(
-          (sum, item) => sum + Number(item.amount || 0),
+          (sum, item) =>
+            sum +
+            Number(
+              item.amount || 0
+            ),
           0
         ) || 0;
 
-      setReferralBonus(approvedRewards);
+      setReferralBonus(
+        approvedRewards
+      );
     } catch (error) {
-      console.error("Dashboard error:", error);
+      console.error(
+        "Dashboard error:",
+        error
+      );
     } finally {
       setLoading(false);
     }
   }
+
+  const taskProgress =
+    dailyTaskTotal > 0
+      ? Math.round(
+          (dailyTaskCompleted /
+            dailyTaskTotal) *
+            100
+        )
+      : 0;
+
+  const taskEarned =
+    dailyTaskCompleted *
+    TASK_EARNING;
 
   if (loading) {
     return (
@@ -230,7 +381,8 @@ export default function Dashboard() {
           <button
             onClick={async () => {
               await supabase.auth.signOut();
-              window.location.href = "/login";
+              window.location.href =
+                "/login";
             }}
             className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold"
           >
@@ -242,31 +394,42 @@ export default function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-4 py-5 space-y-5">
 
+        {/* SLIDESHOW */}
         <section className="bg-white rounded-2xl shadow-lg overflow-hidden">
 
           <div className="relative w-full h-56 sm:h-72 md:h-80">
 
             <img
               src={slideImages[slide]}
-              alt={"Bright Future Slide " + (slide + 1)}
+              alt={
+                "Bright Future Slide " +
+                (slide + 1)
+              }
               className="w-full h-full object-cover"
             />
 
             <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
 
-              {slideImages.map((_, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => setSlide(index)}
-                  aria-label={"Slide " + (index + 1)}
-                  className={
-                    slide === index
-                      ? "h-3 w-8 rounded-full bg-white shadow"
-                      : "h-3 w-3 rounded-full bg-white/60"
-                  }
-                />
-              ))}
+              {slideImages.map(
+                (_, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() =>
+                      setSlide(index)
+                    }
+                    aria-label={
+                      "Slide " +
+                      (index + 1)
+                    }
+                    className={
+                      slide === index
+                        ? "h-3 w-8 rounded-full bg-white shadow"
+                        : "h-3 w-3 rounded-full bg-white/60"
+                    }
+                  />
+                )
+              )}
 
             </div>
 
@@ -274,6 +437,7 @@ export default function Dashboard() {
 
         </section>
 
+        {/* WELCOME */}
         <section className="bg-white rounded-2xl shadow p-5">
 
           <p className="text-sm text-slate-500">
@@ -285,11 +449,13 @@ export default function Dashboard() {
           </h2>
 
           <p className="text-sm text-slate-500 mt-1">
-            Manage your account and view your latest activity.
+            Manage your account and view
+            your latest activity.
           </p>
 
         </section>
 
+        {/* ACCOUNT SUMMARY */}
         <section>
 
           <h2 className="text-lg font-bold text-slate-800 mb-3">
@@ -314,7 +480,8 @@ export default function Dashboard() {
               </p>
 
               <p className="text-xl font-bold text-blue-600 mt-2">
-                Rs {totalEarnings.toLocaleString()}
+                Rs{" "}
+                {totalEarnings.toLocaleString()}
               </p>
             </div>
 
@@ -324,7 +491,8 @@ export default function Dashboard() {
               </p>
 
               <p className="text-xl font-bold text-orange-500 mt-2">
-                Rs {lockedBalance.toLocaleString()}
+                Rs{" "}
+                {lockedBalance.toLocaleString()}
               </p>
             </div>
 
@@ -334,7 +502,8 @@ export default function Dashboard() {
               </p>
 
               <p className="text-xl font-bold text-purple-600 mt-2">
-                Rs {totalWithdrawal.toLocaleString()}
+                Rs{" "}
+                {totalWithdrawal.toLocaleString()}
               </p>
             </div>
 
@@ -352,6 +521,126 @@ export default function Dashboard() {
 
         </section>
 
+        {/* DAILY TASK PROGRESS */}
+        <section className="bg-white rounded-2xl shadow p-5">
+
+          <div className="flex items-center justify-between gap-3">
+
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">
+                Daily Task
+              </h2>
+
+              <p className="text-sm text-slate-500 mt-1">
+                Complete your daily tasks and earn Rs 50 per task.
+              </p>
+            </div>
+
+            <div className="text-3xl">
+              🎯
+            </div>
+
+          </div>
+
+          {dailyTaskTotal > 0 ? (
+            <>
+
+              <div className="mt-5 grid grid-cols-2 md:grid-cols-3 gap-3">
+
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-xs text-slate-500">
+                    Completed
+                  </p>
+
+                  <p className="text-2xl font-bold text-green-600 mt-1">
+                    {dailyTaskCompleted} /{" "}
+                    {dailyTaskTotal}
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-xs text-slate-500">
+                    Progress
+                  </p>
+
+                  <p className="text-2xl font-bold text-blue-600 mt-1">
+                    {taskProgress}%
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-slate-50 p-4 col-span-2 md:col-span-1">
+                  <p className="text-xs text-slate-500">
+                    Task Earned
+                  </p>
+
+                  <p className="text-2xl font-bold text-green-600 mt-1">
+                    Rs{" "}
+                    {taskEarned.toLocaleString()}
+                  </p>
+                </div>
+
+              </div>
+
+              <div className="mt-5">
+
+                <div className="flex justify-between text-xs mb-2">
+                  <span className="text-slate-500">
+                    Daily Progress
+                  </span>
+
+                  <span className="font-bold text-blue-600">
+                    {dailyTaskCompleted}/
+                    {dailyTaskTotal}
+                  </span>
+                </div>
+
+                <div className="h-3 rounded-full bg-slate-200 overflow-hidden">
+
+                  <div
+                    className="h-full rounded-full bg-blue-600 transition-all duration-500"
+                    style={{
+                      width:
+                        taskProgress + "%",
+                    }}
+                  />
+
+                </div>
+
+              </div>
+<button
+  type="button"
+  onClick={() => {
+    window.location.href = "/task";
+  }}
+  className="mt-5 block w-full rounded-xl bg-indigo-600 text-white p-4 text-center font-bold shadow-md hover:scale-[1.01] transition"
+>
+  🎯 Open Daily Tasks
+</button>
+            </>
+          ) : (
+            <div className="mt-5 rounded-xl bg-yellow-50 border border-yellow-200 p-4">
+
+              <p className="font-semibold text-yellow-800">
+                No Active Plan
+              </p>
+
+              <p className="text-sm text-yellow-700 mt-1">
+                Activate a plan to access Daily Tasks.
+              </p>
+
+              <Link
+                href="/plans"
+                className="mt-3 inline-block rounded-lg bg-blue-600 text-white px-5 py-2 font-semibold"
+              >
+                View Plans
+              </Link>
+
+            </div>
+          )}
+
+        </section>
+
+        {/* EARNINGS OVERVIEW */}
         <section>
 
           <h2 className="text-lg font-bold text-slate-800 mb-3">
@@ -366,17 +655,19 @@ export default function Dashboard() {
               </p>
 
               <p className="text-xl font-bold text-green-600 mt-2">
-                Rs {referralBonus.toLocaleString()}
+                Rs{" "}
+                {referralBonus.toLocaleString()}
               </p>
             </div>
 
             <div className="bg-white rounded-xl shadow p-4">
               <p className="text-xs text-slate-500">
-                Today's Earnings
+                Today&apos;s Earnings
               </p>
 
               <p className="text-xl font-bold text-blue-600 mt-2">
-                Rs {todayEarnings.toLocaleString()}
+                Rs{" "}
+                {todayEarnings.toLocaleString()}
               </p>
             </div>
 
@@ -386,7 +677,8 @@ export default function Dashboard() {
               </p>
 
               <p className="text-xl font-bold text-indigo-600 mt-2">
-                Rs {totalEarnings.toLocaleString()}
+                Rs{" "}
+                {totalEarnings.toLocaleString()}
               </p>
             </div>
 
@@ -394,6 +686,7 @@ export default function Dashboard() {
 
         </section>
 
+        {/* QUICK ACTIONS */}
         <section>
 
           <h2 className="text-lg font-bold text-slate-800 mb-3">
@@ -406,7 +699,9 @@ export default function Dashboard() {
               href="/plans"
               className="bg-blue-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
-              <div className="text-3xl mb-2">📋</div>
+              <div className="text-3xl mb-2">
+                📋
+              </div>
               Plans
             </Link>
 
@@ -414,7 +709,9 @@ export default function Dashboard() {
               href="/deposit"
               className="bg-green-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
-              <div className="text-3xl mb-2">💰</div>
+              <div className="text-3xl mb-2">
+                💰
+              </div>
               Deposit
             </Link>
 
@@ -422,7 +719,9 @@ export default function Dashboard() {
               href="/withdraw"
               className="bg-orange-500 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
-              <div className="text-3xl mb-2">💸</div>
+              <div className="text-3xl mb-2">
+                💸
+              </div>
               Withdraw
             </Link>
 
@@ -430,23 +729,28 @@ export default function Dashboard() {
               href="/transactions"
               className="bg-purple-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
-              <div className="text-3xl mb-2">📊</div>
+              <div className="text-3xl mb-2">
+                📊
+              </div>
               Transactions
             </Link>
-
-            <Link
-              href="/task"
-              className="bg-indigo-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-            >
-              <div className="text-3xl mb-2">🎯</div>
-              Daily Task
-            </Link>
+<Link
+  href="/task"
+  className="bg-indigo-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
+>
+  <div className="text-3xl mb-2">
+    🎯
+  </div>
+  Daily Task
+</Link>
 
             <Link
               href="/referral"
               className="bg-pink-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
-              <div className="text-3xl mb-2">👥</div>
+              <div className="text-3xl mb-2">
+                👥
+              </div>
               Referral
             </Link>
 
@@ -454,7 +758,28 @@ export default function Dashboard() {
               href="/referral-rewards"
               className="bg-rose-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
-              <div className="text-3xl mb-2">🎁</div>
+              <div className="text-3xl mb-2">
+                🎁
+              </div>
+            </Link>
+
+            <Link
+              href="/referral"
+              className="bg-pink-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
+            >
+              <div className="text-3xl mb-2">
+                👥
+              </div>
+              Referral
+            </Link>
+
+            <Link
+              href="/referral-rewards"
+              className="bg-rose-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
+            >
+              <div className="text-3xl mb-2">
+                🎁
+              </div>
               Referral Rewards
             </Link>
 
@@ -462,7 +787,9 @@ export default function Dashboard() {
               href="/spin-wheel"
               className="bg-cyan-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
-              <div className="text-3xl mb-2">🎡</div>
+              <div className="text-3xl mb-2">
+                🎡
+              </div>
               Spin Wheel
             </Link>
 
@@ -470,7 +797,9 @@ export default function Dashboard() {
               href="/profile"
               className="bg-slate-700 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
-              <div className="text-3xl mb-2">👤</div>
+              <div className="text-3xl mb-2">
+                👤
+              </div>
               Profile
             </Link>
 
@@ -478,7 +807,9 @@ export default function Dashboard() {
               href="/support-partner"
               className="bg-teal-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
             >
-              <div className="text-3xl mb-2">🤝</div>
+              <div className="text-3xl mb-2">
+                🤝
+              </div>
               Support Partner
             </Link>
 
@@ -487,7 +818,9 @@ export default function Dashboard() {
               onClick={installApp}
               className="col-span-2 lg:col-span-4 w-full rounded-xl bg-cyan-500 p-4 font-bold text-slate-950 shadow-lg hover:scale-[1.02] transition cursor-pointer"
             >
-              <div className="text-3xl mb-1">📲</div>
+              <div className="text-3xl mb-1">
+                📲
+              </div>
               Install Bright Future App
             </button>
 
@@ -495,6 +828,7 @@ export default function Dashboard() {
 
         </section>
 
+        {/* ACCOUNT INFORMATION */}
         <section className="bg-white rounded-2xl shadow p-5">
 
           <h2 className="text-lg font-bold text-slate-800 mb-4">
@@ -519,7 +853,8 @@ export default function Dashboard() {
               </span>
 
               <span className="font-semibold text-green-600">
-                Rs {balance.toLocaleString()}
+                Rs{" "}
+                {balance.toLocaleString()}
               </span>
             </div>
 
@@ -529,7 +864,8 @@ export default function Dashboard() {
               </span>
 
               <span className="font-semibold text-blue-600">
-                Rs {totalEarnings.toLocaleString()}
+                Rs{" "}
+                {totalEarnings.toLocaleString()}
               </span>
             </div>
 
@@ -537,6 +873,7 @@ export default function Dashboard() {
 
         </section>
 
+        {/* NOTICE */}
         <section className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5">
 
           <h2 className="font-bold text-yellow-800">

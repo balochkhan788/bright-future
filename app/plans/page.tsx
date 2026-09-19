@@ -8,7 +8,7 @@ const plans = [
   { name: "G-2", amount: 9000, today: 300, month: 9000 },
   { name: "G-3", amount: 12000, today: 400, month: 12000 },
   { name: "G-4", amount: 15000, today: 500, month: 15000 },
-  { name: "G-5", amount: 30000, today: 1000, month: 300000 },
+  { name: "G-5", amount: 30000, today: 1000, month: 30000 },
   { name: "G-6", amount: 50000, today: 2000, month: 60000 },
   { name: "G-7", amount: 80000, today: 3000, month: 90000 },
 ];
