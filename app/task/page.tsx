@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type Plan = {
@@ -34,9 +34,111 @@ export default function TaskPage() {
   const [countdown, setCountdown] = useState(0);
   const [message, setMessage] = useState("");
 
+  const audioContextRef = useRef<AudioContext | null>(null);
+
   useEffect(() => {
     loadTasks();
+
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+      }
+    };
   }, []);
+
+  function getAudioContext() {
+    try {
+      const AudioContextClass =
+        window.AudioContext ||
+        (
+          window as typeof window & {
+            webkitAudioContext?: typeof AudioContext;
+          }
+        ).webkitAudioContext;
+
+      if (!AudioContextClass) {
+        return null;
+      }
+
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContextClass();
+      }
+
+      return audioContextRef.current;
+    } catch {
+      return null;
+    }
+  }
+
+  function playTickSound() {
+    try {
+      const audioContext = getAudioContext();
+
+      if (!audioContext) return;
+
+      const now = audioContext.currentTime;
+
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(850, now);
+
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        now + 0.12
+      );
+
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.12);
+    } catch {
+      // Ignore audio errors
+    }
+  }
+
+  function playSuccessSound() {
+    try {
+      const audioContext = getAudioContext();
+
+      if (!audioContext) return;
+
+      const now = audioContext.currentTime;
+
+      const frequencies = [700, 900, 1150, 1400];
+
+      frequencies.forEach((frequency, index) => {
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+
+        const startTime = now + index * 0.12;
+        const endTime = startTime + 0.18;
+
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(
+          frequency,
+          startTime
+        );
+
+        gain.gain.setValueAtTime(0.14, startTime);
+        gain.gain.exponentialRampToValueAtTime(
+          0.001,
+          endTime
+        );
+
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+
+        oscillator.start(startTime);
+        oscillator.stop(endTime);
+      });
+    } catch {
+      // Ignore audio errors
+    }
+  }
 
   async function loadTasks() {
     setLoading(true);
@@ -52,7 +154,6 @@ export default function TaskPage() {
       return;
     }
 
-    // Active plan
     const planResult = await supabase
       .from("user_plans")
       .select("plan_name, today_earning")
@@ -76,7 +177,9 @@ export default function TaskPage() {
 
     const activePlan: Plan = {
       plan_name: planResult.data.plan_name,
-      today_earning: Number(planResult.data.today_earning),
+      today_earning: Number(
+        planResult.data.today_earning
+      ),
     };
 
     setPlan(activePlan);
@@ -84,23 +187,27 @@ export default function TaskPage() {
     const taskCount =
       TASKS_PER_PLAN[activePlan.plan_name] || 0;
 
-    // Today's date
     const now = new Date();
 
     const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(
+      now.getMonth() + 1
+    ).padStart(2, "0");
+    const day = String(
+      now.getDate()
+    ).padStart(2, "0");
 
     const todayDate =
       year + "-" + month + "-" + day;
 
-    // Get today's completed tasks
     const taskResult = await supabase
       .from("daily_tasks")
       .select("task_number")
       .eq("user_id", user.id)
       .eq("task_date", todayDate)
-      .order("task_number", { ascending: true });
+      .order("task_number", {
+        ascending: true,
+      });
 
     if (taskResult.error) {
       setMessage(taskResult.error.message);
@@ -135,12 +242,15 @@ export default function TaskPage() {
     setMessage("");
 
     if (!plan) {
-      setMessage("Please activate a plan first.");
+      setMessage(
+        "Please activate a plan first."
+      );
       return;
     }
 
     const selectedTask = tasks.find(
-      (task) => task.task_number === taskNumber
+      (task) =>
+        task.task_number === taskNumber
     );
 
     if (!selectedTask) {
@@ -154,25 +264,51 @@ export default function TaskPage() {
       return;
     }
 
+    // Unlock audio immediately from button click
+    const audioContext = getAudioContext();
+
+    if (audioContext) {
+      try {
+        if (audioContext.state === "suspended") {
+          await audioContext.resume();
+        }
+      } catch {
+        // Ignore audio resume errors
+      }
+    }
+
     // Start 10 second countdown
     setWorkingTask(taskNumber);
     setCountdown(COUNTDOWN_SECONDS);
 
     let remaining = COUNTDOWN_SECONDS;
 
-    const timer = setInterval(() => {
+    // First tick
+    playTickSound();
+
+    const timer = window.setInterval(() => {
       remaining -= 1;
+
       setCountdown(remaining);
 
+      if (remaining > 0) {
+        playTickSound();
+      }
+
       if (remaining <= 0) {
-        clearInterval(timer);
+        window.clearInterval(timer);
       }
     }, 1000);
 
     // Wait 10 seconds
     await new Promise((resolve) =>
-      setTimeout(resolve, COUNTDOWN_SECONDS * 1000)
+      window.setTimeout(
+        resolve,
+        COUNTDOWN_SECONDS * 1000
+      )
     );
+
+    window.clearInterval(timer);
 
     const result = await supabase.rpc(
       "complete_daily_task",
@@ -188,11 +324,17 @@ export default function TaskPage() {
       return;
     }
 
+    // Success sound
+    playSuccessSound();
+
     // Mark task completed
     setTasks((currentTasks) =>
       currentTasks.map((task) =>
         task.task_number === taskNumber
-          ? { ...task, completed: true }
+          ? {
+              ...task,
+              completed: true,
+            }
           : task
       )
     );
