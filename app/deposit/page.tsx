@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 type PaymentAccount = {
   account_name: string;
   iban: string;
+  payment_method: string;
 };
 
 export default function Deposit() {
@@ -22,7 +23,7 @@ export default function Deposit() {
 
   const router = useRouter();
 
-  async function openEasypaisa() {
+  async function openPaymentAccount() {
     setMessage("");
     setShowAccount(false);
     setSelectedAccount(null);
@@ -76,7 +77,7 @@ export default function Deposit() {
     }
 
     if (!showAccount || !selectedAccount) {
-      setMessage("Please select Easypaisa first.");
+      setMessage("Please select a payment method first.");
       return;
     }
 
@@ -118,7 +119,11 @@ export default function Deposit() {
         screenshot.name.split(".").pop() || "jpg";
 
       const fileName =
-  String(user.id) + "/" + String(Date.now()) + "." + fileExt;
+        String(user.id) +
+        "/" +
+        String(Date.now()) +
+        "." +
+        fileExt;
 
       const { error: uploadError } =
         await supabase.storage
@@ -132,8 +137,8 @@ export default function Deposit() {
         );
 
         setMessage(
-  "Upload Error: " + uploadError.message
-);
+          "Upload Error: " + uploadError.message
+        );
 
         setLoading(false);
         return;
@@ -146,8 +151,10 @@ export default function Deposit() {
             user_id: user.id,
             amount: numericAmount,
             status: "pending",
-            payment_method: "Easypaisa",
-            transaction_id: transactionId.trim(),
+            payment_method:
+              selectedAccount.payment_method,
+            transaction_id:
+              transactionId.trim(),
             screenshot_url: fileName,
           });
 
@@ -183,6 +190,7 @@ export default function Deposit() {
       }
     } catch (error) {
       console.error(error);
+
       setMessage(
         "Something went wrong. Please try again."
       );
@@ -209,23 +217,23 @@ export default function Deposit() {
           </h2>
 
           <p className="mt-2 text-slate-400">
-            Select Easypaisa to view the payment account.
+            Select a payment method to view the payment account.
           </p>
 
           <button
             type="button"
-            onClick={openEasypaisa}
+            onClick={openPaymentAccount}
             className="mt-6 w-full rounded-xl border border-green-400/30 bg-green-500/10 p-5 text-left transition hover:bg-green-500/20"
           >
             <div className="flex items-center justify-between">
 
               <div>
                 <h3 className="text-2xl font-bold text-green-400">
-                  Easypaisa
+                  Payment Account
                 </h3>
 
                 <p className="mt-1 text-sm text-slate-400">
-                  Click to view payment account
+                  Click to view available account
                 </p>
               </div>
 
@@ -240,7 +248,7 @@ export default function Deposit() {
             <div className="mt-5 rounded-xl border border-green-400/30 bg-green-400/10 p-5">
 
               <h3 className="text-xl font-bold text-green-400">
-                Easypaisa Account
+                {selectedAccount.payment_method}
               </h3>
 
               <p className="mt-4 text-sm text-slate-400">
@@ -292,8 +300,11 @@ export default function Deposit() {
 
             <input
               type="text"
-              value="Easypaisa"
+              value={
+                selectedAccount?.payment_method || ""
+              }
               readOnly
+              placeholder="Select payment account first"
               className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none"
             />
 
