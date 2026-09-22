@@ -15,11 +15,11 @@ export default function RulesPage() {
 
         <div className="mt-8 space-y-6">
 
+          {/* 1 */}
           <section className="rounded-xl bg-white/5 p-6">
             <h2 className="mb-3 text-2xl font-bold text-cyan-400">
               1. Purpose of the App
             </h2>
-
             <p className="text-slate-300">
               Bright Future Earned App provides users with a platform for
               investment and task-based earning activities. Users can
@@ -28,23 +28,27 @@ export default function RulesPage() {
             </p>
           </section>
 
+          {/* 2 */}
           <section className="rounded-xl bg-white/5 p-6">
             <h2 className="mb-3 text-2xl font-bold text-cyan-400">
               2. Investment & Profit
             </h2>
-
             <ul className="list-disc space-y-2 pl-6 text-slate-300">
               <li>Users may select an available investment plan.</li>
-              <li>Plan earning/profit terms will be displayed in the app.</li>
-              <li>Users should review plan details before activation.</li>
+              <li>
+                Plan earning/profit terms will be displayed in the app.
+              </li>
+              <li>
+                Users should review plan details before activation.
+              </li>
             </ul>
           </section>
 
+          {/* 3 */}
           <section className="rounded-xl bg-white/5 p-6">
             <h2 className="mb-3 text-2xl font-bold text-cyan-400">
               3. Task Schedule
             </h2>
-
             <ul className="list-disc space-y-2 pl-6 text-slate-300">
               <li>Users must complete available daily tasks.</li>
               <li>Sunday is a Task Off day.</li>
@@ -56,13 +60,16 @@ export default function RulesPage() {
             </ul>
           </section>
 
+          {/* 4 */}
           <section className="rounded-xl bg-white/5 p-6">
             <h2 className="mb-3 text-2xl font-bold text-cyan-400">
               4. Withdrawal Rules
             </h2>
 
             <ul className="list-disc space-y-2 pl-6 text-slate-300">
-              <li>Minimum withdrawal amount: Rs 1,000.</li>
+              <li>
+                <strong>Minimum withdrawal amount: Rs 1,000.</strong>
+              </li>
 
               <li>
                 Only the following withdrawal amounts will be eligible for
@@ -81,8 +88,8 @@ export default function RulesPage() {
               </li>
 
               <li>
-                A 5% company/administration fee will be applicable on
-                withdrawals.
+                A <strong>5% company/administration fee</strong> will be
+                applicable on withdrawals.
               </li>
 
               <li>Maximum 5 withdrawal requests per week.</li>
@@ -91,7 +98,9 @@ export default function RulesPage() {
 
               <li>Saturday and Sunday are Withdrawal Off days.</li>
 
-              <li>Withdrawal time: 9:00 PM to 12:00 AM.</li>
+              <li>
+                <strong>Withdrawal time: 9:00 PM to 12:00 AM.</strong>
+              </li>
 
               <li>
                 Withdrawals will be processed to the registered payment
@@ -105,6 +114,7 @@ export default function RulesPage() {
             </ul>
           </section>
 
+          {/* 5 */}
           <section className="rounded-xl bg-white/5 p-6">
             <h2 className="mb-3 text-2xl font-bold text-cyan-400">
               5. Payment Details
@@ -125,6 +135,7 @@ export default function RulesPage() {
             </ul>
           </section>
 
+          {/* 6 */}
           <section className="rounded-xl bg-white/5 p-6">
             <h2 className="mb-4 text-2xl font-bold text-cyan-400">
               6. Weekly Schedule
@@ -141,84 +152,43 @@ export default function RulesPage() {
                 </thead>
 
                 <tbody>
-                  <tr>
-                    <td className="border-b border-white/10 p-3">Monday</td>
-                    <td className="border-b border-white/10 p-3">
-                      Available
-                    </td>
-                    <td className="border-b border-white/10 p-3">
-                      9 PM – 12 AM
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td className="border-b border-white/10 p-3">Tuesday</td>
-                    <td className="border-b border-white/10 p-3">
-                      Available
-                    </td>
-                    <td className="border-b border-white/10 p-3">
-                      9 PM – 12 AM
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td className="border-b border-white/10 p-3">
-                      Wednesday
-                    </td>
-                    <td className="border-b border-white/10 p-3">
-                      Available
-                    </td>
-                    <td className="border-b border-white/10 p-3">
-                      9 PM – 12 AM
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td className="border-b border-white/10 p-3">
-                      Thursday
-                    </td>
-                    <td className="border-b border-white/10 p-3">
-                      Available
-                    </td>
-                    <td className="border-b border-white/10 p-3">
-                      9 PM – 12 AM
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td className="border-b border-white/10 p-3">Friday</td>
-                    <td className="border-b border-white/10 p-3">
-                      Available
-                    </td>
-                    <td className="border-b border-white/10 p-3">
-                      9 PM – 12 AM
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td className="border-b border-white/10 p-3">Saturday</td>
-                    <td className="border-b border-white/10 p-3">
-                      Available
-                    </td>
-                    <td className="border-b border-white/10 p-3 text-yellow-400">
-                      Withdrawal Off
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td className="p-3">Sunday</td>
-                    <td className="p-3 text-yellow-400">
-                      Task Off
-                    </td>
-                    <td className="p-3 text-yellow-400">
-                      Withdrawal Off
-                    </td>
-                  </tr>
+                  {[
+                    ["Monday", "Available", "9 PM – 12 AM"],
+                    ["Tuesday", "Available", "9 PM – 12 AM"],
+                    ["Wednesday", "Available", "9 PM – 12 AM"],
+                    ["Thursday", "Available", "9 PM – 12 AM"],
+                    ["Friday", "Available", "9 PM – 12 AM"],
+                    ["Saturday", "Available", "Withdrawal Off"],
+                    ["Sunday", "Task Off", "Withdrawal Off"],
+                  ].map(([day, tasks, withdrawal]) => (
+                    <tr key={day}>
+                      <td className="border-b border-white/10 p-3">
+                        {day}
+                      </td>
+                      <td
+                        className={`border-b border-white/10 p-3 ${
+                          tasks === "Task Off" ? "text-yellow-400" : ""
+                        }`}
+                      >
+                        {tasks}
+                      </td>
+                      <td
+                        className={`border-b border-white/10 p-3 ${
+                          withdrawal === "Withdrawal Off"
+                            ? "text-yellow-400"
+                            : ""
+                        }`}
+                      >
+                        {withdrawal}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </section>
 
+          {/* 7 */}
           <section className="rounded-xl bg-white/5 p-6">
             <h2 className="mb-3 text-2xl font-bold text-cyan-400">
               7. Weekly Withdrawal Limit
@@ -235,6 +205,7 @@ export default function RulesPage() {
             </ul>
           </section>
 
+          {/* 8 */}
           <section className="rounded-xl bg-white/5 p-6">
             <h2 className="mb-3 text-2xl font-bold text-cyan-400">
               8. Referral, Dinner & Salary Benefit
@@ -242,23 +213,27 @@ export default function RulesPage() {
 
             <ul className="list-disc space-y-2 pl-6 text-slate-300">
               <li>
-                A user who successfully adds or refers 10 qualifying people
-                may become eligible for the Dinner Benefit.
+                A user who successfully adds or refers{" "}
+                <strong>10 qualifying people</strong> may become eligible
+                for the Dinner Benefit.
               </li>
 
               <li>
-                Eligible users may receive a Rs 15,000 monthly dinner
-                allowance, subject to verification and applicable terms.
+                Eligible users may receive a{" "}
+                <strong>Rs 15,000 monthly dinner allowance</strong>,
+                subject to verification and applicable terms.
               </li>
 
               <li>
-                A user who successfully reaches 15 qualifying referrals may
-                become eligible for a Rs 15,000 monthly salary, subject to
+                A user who successfully reaches{" "}
+                <strong>15 qualifying referrals</strong> may become eligible
+                for a <strong>Rs 15,000 monthly salary</strong>, subject to
                 verification and applicable terms.
               </li>
             </ul>
           </section>
 
+          {/* 9 */}
           <section className="rounded-xl bg-white/5 p-6">
             <h2 className="mb-3 text-2xl font-bold text-cyan-400">
               9. Qualifying Referral Structure
@@ -283,6 +258,7 @@ export default function RulesPage() {
             </p>
           </section>
 
+          {/* 10 */}
           <section className="rounded-xl bg-white/5 p-6">
             <h2 className="mb-3 text-2xl font-bold text-cyan-400">
               10. Referral-Based Salary Structure
@@ -293,24 +269,26 @@ export default function RulesPage() {
               <li>80 referrals → Rs 25,000 monthly salary</li>
               <li>100 referrals → Rs 30,000 monthly salary</li>
               <li>
-                150 referrals → Rs 40,000 monthly salary + Rs 30,000 Office
-                Allowance
+                150 referrals → Rs 40,000 monthly salary + Rs 30,000
+                Office Allowance
               </li>
             </ul>
           </section>
 
+          {/* 11 */}
           <section className="rounded-xl bg-white/5 p-6">
             <h2 className="mb-3 text-2xl font-bold text-cyan-400">
               11. Dinner Picture Submission
             </h2>
 
             <p className="text-slate-300">
-              Eligible users may be required to send a dinner picture to the
-              designated Dinner Group and Support Partner. The picture may be
-              required for verification of the Dinner Allowance.
+              Eligible users may be required to send a dinner picture to
+              the designated Dinner Group and Support Partner. The picture
+              may be required for verification of the Dinner Allowance.
             </p>
           </section>
 
+          {/* 12 */}
           <section className="rounded-xl bg-white/5 p-6">
             <h2 className="mb-3 text-2xl font-bold text-cyan-400">
               12. Bright Future Group Benefit
@@ -323,8 +301,8 @@ export default function RulesPage() {
               </li>
 
               <li>
-                The Group Admin should contact the Company Manager and send a
-                picture/screenshot of the created Bright Future group for
+                The Group Admin should contact the Company Manager and send
+                a picture/screenshot of the created Bright Future group for
                 verification.
               </li>
 
@@ -336,6 +314,7 @@ export default function RulesPage() {
             </ul>
           </section>
 
+          {/* 13 */}
           <section className="rounded-xl border border-yellow-400/20 bg-yellow-400/5 p-6">
             <h2 className="mb-3 text-2xl font-bold text-yellow-400">
               13. Important Note
