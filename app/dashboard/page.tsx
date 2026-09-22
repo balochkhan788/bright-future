@@ -687,146 +687,128 @@ export default function Dashboard() {
         </section>
 
         {/* QUICK ACTIONS */}
-        <section>
+<section>
 
-          <h2 className="text-lg font-bold text-slate-800 mb-3">
-            Quick Actions
-          </h2>
+  <h2 className="text-lg font-bold text-slate-800 mb-3">
+    Quick Actions
+  </h2>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
-            <Link
-              href="/plans"
-              className="bg-blue-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-            >
-              <div className="text-3xl mb-2">
-                📋
-              </div>
-              Plans
-            </Link>
+    <Link
+      href="/plans"
+      className="bg-blue-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
+    >
+      <div className="text-3xl mb-2">
+        📋
+      </div>
+      Plans
+    </Link>
 
-            <Link
-              href="/deposit"
-              className="bg-green-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-            >
-              <div className="text-3xl mb-2">
-                💰
-              </div>
-              Deposit
-            </Link>
+    <Link
+      href="/deposit"
+      className="bg-green-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
+    >
+      <div className="text-3xl mb-2">
+        💰
+      </div>
+      Deposit
+    </Link>
 
-            <Link
-              href="/withdraw"
-              className="bg-orange-500 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-            >
-              <div className="text-3xl mb-2">
-                💸
-              </div>
-              Withdraw
-            </Link>
+    <Link
+      href="/withdraw"
+      className="bg-orange-500 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
+    >
+      <div className="text-3xl mb-2">
+        💸
+      </div>
+      Withdraw
+    </Link>
 
-            <Link
-              href="/transactions"
-              className="bg-purple-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-            >
-              <div className="text-3xl mb-2">
-                📊
-              </div>
-              Transactions
-            </Link>
-<Link
-  href="/task"
-  className="bg-indigo-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
->
-  <div className="text-3xl mb-2">
-    🎯
+    <Link
+      href="/transactions"
+      className="bg-purple-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
+    >
+      <div className="text-3xl mb-2">
+        📊
+      </div>
+      Transactions
+    </Link>
+
+    <Link
+      href="/task"
+      className="bg-indigo-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
+    >
+      <div className="text-3xl mb-2">
+        🎯
+      </div>
+      Daily Task
+    </Link>
+
+    <Link
+      href="/referral"
+      className="bg-pink-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
+    >
+      <div className="text-3xl mb-2">
+        👥
+      </div>
+      Referral
+    </Link>
+
+    <Link
+      href="/referral-rewards"
+      className="bg-rose-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
+    >
+      <div className="text-3xl mb-2">
+        🎁
+      </div>
+      Referral Rewards
+    </Link>
+
+    <Link
+      href="/spin-wheel"
+      className="bg-cyan-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
+    >
+      <div className="text-3xl mb-2">
+        🎡
+      </div>
+      Spin Wheel
+    </Link>
+
+    <Link
+      href="/profile"
+      className="bg-slate-700 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
+    >
+      <div className="text-3xl mb-2">
+        👤
+      </div>
+      Profile
+    </Link>
+
+    <Link
+      href="/support-partner"
+      className="bg-teal-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
+    >
+      <div className="text-3xl mb-2">
+        🤝
+      </div>
+      Support Partner
+    </Link>
+
+    <button
+      type="button"
+      onClick={installApp}
+      className="col-span-2 lg:col-span-4 w-full rounded-xl bg-cyan-500 p-4 font-bold text-slate-950 shadow-lg hover:scale-[1.02] transition cursor-pointer"
+    >
+      <div className="text-3xl mb-1">
+        📲
+      </div>
+      Install Bright Future App
+    </button>
+
   </div>
-  Daily Task
-</Link>
 
-            <Link
-              href="/referral"
-              className="bg-pink-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-            >
-              <div className="text-3xl mb-2">
-                👥
-              </div>
-              Referral
-            </Link>
-
-            <Link
-              href="/referral-rewards"
-              className="bg-rose-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-            >
-              <div className="text-3xl mb-2">
-                🎁
-              </div>
-            </Link>
-
-            <Link
-              href="/referral"
-              className="bg-pink-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-            >
-              <div className="text-3xl mb-2">
-                👥
-              </div>
-              Referral
-            </Link>
-
-            <Link
-              href="/referral-rewards"
-              className="bg-rose-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-            >
-              <div className="text-3xl mb-2">
-                🎁
-              </div>
-              Referral Rewards
-            </Link>
-
-            <Link
-              href="/spin-wheel"
-              className="bg-cyan-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-            >
-              <div className="text-3xl mb-2">
-                🎡
-              </div>
-              Spin Wheel
-            </Link>
-
-            <Link
-              href="/profile"
-              className="bg-slate-700 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-            >
-              <div className="text-3xl mb-2">
-                👤
-              </div>
-              Profile
-            </Link>
-
-            <Link
-              href="/support-partner"
-              className="bg-teal-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-            >
-              <div className="text-3xl mb-2">
-                🤝
-              </div>
-              Support Partner
-            </Link>
-
-            <button
-              type="button"
-              onClick={installApp}
-              className="col-span-2 lg:col-span-4 w-full rounded-xl bg-cyan-500 p-4 font-bold text-slate-950 shadow-lg hover:scale-[1.02] transition cursor-pointer"
-            >
-              <div className="text-3xl mb-1">
-                📲
-              </div>
-              Install Bright Future App
-            </button>
-
-          </div>
-
-        </section>
+</section>
 
         {/* ACCOUNT INFORMATION */}
         <section className="bg-white rounded-2xl shadow p-5">
