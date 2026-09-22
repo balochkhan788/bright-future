@@ -692,7 +692,12 @@ export default function Dashboard() {
   <h2 className="text-lg font-bold text-slate-800 mb-3">
     Quick Actions
   </h2>
-
+<Link
+  href="/rules"
+  className="rounded-xl bg-slate-800 p-4 text-center font-bold text-white hover:bg-slate-700"
+>
+  📋 Rules
+</Link>
   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
     <Link
@@ -794,7 +799,12 @@ export default function Dashboard() {
       </div>
       Support Partner
     </Link>
-
+<Link
+  href="/rules"
+  className="rounded-xl bg-slate-800 p-4 text-center font-bold text-white hover:bg-slate-700"
+>
+  📋 Rules
+</Link>
     <button
       type="button"
       onClick={installApp}
