@@ -16,18 +16,24 @@ const plans = [
 export default function Plans() {
   const [active, setActive] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activating, setActivating] = useState(false);
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     getActivePlan();
   }, []);
 
   async function getActivePlan() {
+    setLoading(true);
+    setError("");
+
     const result = await supabase.auth.getUser();
     const user = result.data.user;
 
     if (!user) {
       setLoading(false);
+      setError("Please login first.");
       return;
     }
 
@@ -40,6 +46,12 @@ export default function Plans() {
       .limit(1)
       .maybeSingle();
 
+    if (response.error) {
+      setError(response.error.message);
+      setLoading(false);
+      return;
+    }
+
     if (response.data) {
       setActive({
         name: response.data.plan_name,
@@ -47,6 +59,8 @@ export default function Plans() {
         today: Number(response.data.today_earning),
         month: Number(response.data.month_earning),
       });
+    } else {
+      setActive(null);
     }
 
     setLoading(false);
@@ -54,9 +68,14 @@ export default function Plans() {
 
   async function activate(plan: any) {
     setMessage("");
+    setError("");
 
     if (active) {
       setMessage("You already have an active plan.");
+      return;
+    }
+
+    if (activating) {
       return;
     }
 
@@ -64,26 +83,65 @@ export default function Plans() {
     const user = result.data.user;
 
     if (!user) {
-      setMessage("Please login first.");
+      setError("Please login first.");
       return;
     }
 
-    const response = await supabase.from("user_plans").insert({
-      user_id: user.id,
-      plan_name: plan.name,
-      amount: plan.amount,
-      today_earning: plan.today,
-      month_earning: plan.month,
-      status: "active",
-    });
+    setActivating(true);
 
-    if (response.error) {
-      setMessage(response.error.message);
-      return;
+    try {
+      /*
+        Secure database RPC:
+
+        1. Checks active plan
+        2. Checks available balance
+        3. Deducts plan amount
+        4. Creates active plan
+        5. Creates wallet transaction
+      */
+
+      const response = await supabase.rpc(
+        "activate_user_plan",
+        {
+          p_plan_name: plan.name,
+        }
+      );
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const data = response.data;
+
+      if (!data || data.success !== true) {
+        throw new Error(
+          "Plan activation could not be completed."
+        );
+      }
+
+      setActive({
+        name: plan.name,
+        amount: Number(plan.amount),
+        today: Number(plan.today),
+        month: Number(plan.month),
+      });
+
+      setMessage(
+        `${plan.name} activated successfully. Rs. ${Number(
+          plan.amount
+        ).toLocaleString()} has been deducted from your available balance.`
+      );
+    } catch (err) {
+      console.error("Plan activation error:", err);
+
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Unable to activate plan.");
+      }
+    } finally {
+      setActivating(false);
     }
-
-    setActive(plan);
-    setMessage(plan.name + " activated successfully.");
   }
 
   return (
@@ -91,7 +149,10 @@ export default function Plans() {
       <div className="mx-auto max-w-6xl">
 
         <h1 className="text-4xl font-bold">
-          Bright <span className="text-cyan-400">Future</span>
+          Bright{" "}
+          <span className="text-cyan-400">
+            Future
+          </span>
         </h1>
 
         <p className="mt-2 text-slate-400">
@@ -100,6 +161,7 @@ export default function Plans() {
 
         {/* ACTIVE PLAN */}
         <div className="mt-8">
+
           <h2 className="mb-4 text-2xl font-bold">
             Active Plan
           </h2>
@@ -110,12 +172,14 @@ export default function Plans() {
             </div>
           ) : active ? (
             <div className="rounded-2xl border border-cyan-400/30 bg-cyan-400/10 p-6">
+
               <div className="grid gap-5 md:grid-cols-4">
 
                 <div>
                   <p className="text-sm text-slate-400">
                     Plan
                   </p>
+
                   <p className="text-3xl font-bold text-cyan-400">
                     {active.name}
                   </p>
@@ -125,8 +189,10 @@ export default function Plans() {
                   <p className="text-sm text-slate-400">
                     Amount
                   </p>
+
                   <p className="text-xl font-bold">
-                    Rs. {active.amount.toLocaleString()}
+                    Rs.{" "}
+                    {active.amount.toLocaleString()}
                   </p>
                 </div>
 
@@ -134,8 +200,10 @@ export default function Plans() {
                   <p className="text-sm text-slate-400">
                     Today Earning
                   </p>
+
                   <p className="text-xl font-bold text-green-400">
-                    Rs. {active.today.toLocaleString()}
+                    Rs.{" "}
+                    {active.today.toLocaleString()}
                   </p>
                 </div>
 
@@ -143,18 +211,22 @@ export default function Plans() {
                   <p className="text-sm text-slate-400">
                     Month Earning
                   </p>
+
                   <p className="text-xl font-bold text-green-400">
-                    Rs. {active.month.toLocaleString()}
+                    Rs.{" "}
+                    {active.month.toLocaleString()}
                   </p>
                 </div>
 
               </div>
+
             </div>
           ) : (
             <div className="rounded-xl bg-white/5 p-6 text-slate-400">
               No Active Plan
             </div>
           )}
+
         </div>
 
         {/* AVAILABLE PLANS */}
@@ -173,18 +245,40 @@ export default function Plans() {
             <table className="w-full min-w-[700px]">
 
               <thead className="bg-cyan-500 text-left text-slate-950">
+
                 <tr>
-                  <th className="p-4">Plan</th>
-                  <th className="p-4">Amount</th>
-                  <th className="p-4">Today Earning</th>
-                  <th className="p-4">Month Earning</th>
-                  <th className="p-4">Action</th>
+
+                  <th className="p-4">
+                    Plan
+                  </th>
+
+                  <th className="p-4">
+                    Amount
+                  </th>
+
+                  <th className="p-4">
+                    Today Earning
+                  </th>
+
+                  <th className="p-4">
+                    Month Earning
+                  </th>
+
+                  <th className="p-4">
+                    Action
+                  </th>
+
                 </tr>
+
               </thead>
 
               <tbody>
 
                 {plans.map(function (plan) {
+
+                  const isActive =
+                    active &&
+                    active.name === plan.name;
 
                   return (
                     <tr
@@ -197,29 +291,40 @@ export default function Plans() {
                       </td>
 
                       <td className="p-4">
-                        Rs. {plan.amount.toLocaleString()}
+                        Rs.{" "}
+                        {plan.amount.toLocaleString()}
                       </td>
 
                       <td className="p-4 text-green-400">
-                        Rs. {plan.today.toLocaleString()}
+                        Rs.{" "}
+                        {plan.today.toLocaleString()}
                       </td>
 
                       <td className="p-4 text-green-400">
-                        Rs. {plan.month.toLocaleString()}
+                        Rs.{" "}
+                        {plan.month.toLocaleString()}
                       </td>
 
                       <td className="p-4">
 
                         <button
+                          type="button"
                           onClick={function () {
                             activate(plan);
                           }}
-                          disabled={active !== null}
-                          className="rounded-lg bg-cyan-500 px-4 py-2 font-bold text-slate-950 disabled:opacity-40"
+                          disabled={
+                            active !== null ||
+                            activating
+                          }
+                          className="rounded-lg bg-cyan-500 px-4 py-2 font-bold text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
                         >
-                          {active && active.name === plan.name
+
+                          {isActive
                             ? "Active"
+                            : activating
+                            ? "Activating..."
                             : "Activate"}
+
                         </button>
 
                       </td>
@@ -234,12 +339,20 @@ export default function Plans() {
             </table>
 
           </div>
+
         </div>
 
-        {/* MESSAGE */}
+        {/* SUCCESS MESSAGE */}
         {message !== "" && (
-          <div className="mt-5 rounded-xl bg-cyan-400/10 p-4 text-center text-cyan-300">
+          <div className="mt-5 rounded-xl border border-green-400/20 bg-green-400/10 p-4 text-center font-semibold text-green-400">
             {message}
+          </div>
+        )}
+
+        {/* ERROR MESSAGE */}
+        {error !== "" && (
+          <div className="mt-5 rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-center font-semibold text-red-400">
+            {error}
           </div>
         )}
 
@@ -250,8 +363,9 @@ export default function Plans() {
             Plan Information:
           </b>{" "}
 
-          Plan figures are displayed for account planning.
-          This page does not automatically add earnings to the wallet.
+          Plan activation requires sufficient available
+          balance. The plan amount is deducted when the
+          plan is successfully activated.
 
         </div>
 

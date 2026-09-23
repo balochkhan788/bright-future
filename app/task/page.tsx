@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 type Plan = {
@@ -39,12 +40,24 @@ export default function TaskPage() {
   useEffect(() => {
     loadTasks();
 
+    const refresh = () => {
+      if (workingTask === null) {
+        loadTasks();
+      }
+    };
+
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+
     return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+
       if (audioContextRef.current) {
         audioContextRef.current.close().catch(() => {});
       }
     };
-  }, []);
+  }, [workingTask]);
 
   function getAudioContext() {
     try {
@@ -56,9 +69,7 @@ export default function TaskPage() {
           }
         ).webkitAudioContext;
 
-      if (!AudioContextClass) {
-        return null;
-      }
+      if (!AudioContextClass) return null;
 
       if (!audioContextRef.current) {
         audioContextRef.current = new AudioContextClass();
@@ -107,7 +118,6 @@ export default function TaskPage() {
       if (!audioContext) return;
 
       const now = audioContext.currentTime;
-
       const frequencies = [700, 900, 1150, 1400];
 
       frequencies.forEach((frequency, index) => {
@@ -140,8 +150,21 @@ export default function TaskPage() {
     }
   }
 
+  function getPakistanDate() {
+    const formatter = new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone: "Asia/Karachi",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }
+    );
+
+    return formatter.format(new Date());
+  }
+
   async function loadTasks() {
-    setLoading(true);
     setMessage("");
 
     const {
@@ -156,7 +179,7 @@ export default function TaskPage() {
 
     const planResult = await supabase
       .from("user_plans")
-      .select("plan_name, today_earning")
+      .select("plan_name, today_earning, status")
       .eq("user_id", user.id)
       .eq("status", "active")
       .order("created_at", { ascending: false })
@@ -169,8 +192,28 @@ export default function TaskPage() {
       return;
     }
 
+    /*
+      NO ACTIVE PLAN
+
+      Tasks will remain visible as LOCKED.
+      They will automatically become active
+      when the user activates a plan.
+    */
     if (!planResult.data) {
       setPlan(null);
+
+      const lockedTaskCount = 4;
+
+      setTasks(
+        Array.from(
+          { length: lockedTaskCount },
+          (_, index) => ({
+            task_number: index + 1,
+            completed: false,
+          })
+        )
+      );
+
       setLoading(false);
       return;
     }
@@ -187,18 +230,13 @@ export default function TaskPage() {
     const taskCount =
       TASKS_PER_PLAN[activePlan.plan_name] || 0;
 
-    const now = new Date();
+    if (taskCount === 0) {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
 
-    const year = now.getFullYear();
-    const month = String(
-      now.getMonth() + 1
-    ).padStart(2, "0");
-    const day = String(
-      now.getDate()
-    ).padStart(2, "0");
-
-    const todayDate =
-      year + "-" + month + "-" + day;
+    const todayDate = getPakistanDate();
 
     const taskResult = await supabase
       .from("daily_tasks")
@@ -235,27 +273,22 @@ export default function TaskPage() {
   }
 
   async function completeTask(taskNumber: number) {
-    if (workingTask !== null) {
-      return;
-    }
+    if (workingTask !== null) return;
 
     setMessage("");
 
     if (!plan) {
       setMessage(
-        "Please activate a plan first."
+        "No Plan Active. Please activate a plan first, then your task earnings will start."
       );
       return;
     }
 
     const selectedTask = tasks.find(
-      (task) =>
-        task.task_number === taskNumber
+      (task) => task.task_number === taskNumber
     );
 
-    if (!selectedTask) {
-      return;
-    }
+    if (!selectedTask) return;
 
     if (selectedTask.completed) {
       setMessage(
@@ -264,7 +297,6 @@ export default function TaskPage() {
       return;
     }
 
-    // Unlock audio immediately from button click
     const audioContext = getAudioContext();
 
     if (audioContext) {
@@ -273,17 +305,15 @@ export default function TaskPage() {
           await audioContext.resume();
         }
       } catch {
-        // Ignore audio resume errors
+        // Ignore audio errors
       }
     }
 
-    // Start 10 second countdown
     setWorkingTask(taskNumber);
     setCountdown(COUNTDOWN_SECONDS);
 
     let remaining = COUNTDOWN_SECONDS;
 
-    // First tick
     playTickSound();
 
     const timer = window.setInterval(() => {
@@ -300,7 +330,6 @@ export default function TaskPage() {
       }
     }, 1000);
 
-    // Wait 10 seconds
     await new Promise((resolve) =>
       window.setTimeout(
         resolve,
@@ -324,10 +353,8 @@ export default function TaskPage() {
       return;
     }
 
-    // Success sound
     playSuccessSound();
 
-    // Mark task completed
     setTasks((currentTasks) =>
       currentTasks.map((task) =>
         task.task_number === taskNumber
@@ -392,267 +419,317 @@ export default function TaskPage() {
           </p>
         </div>
 
-        {!plan ? (
-          <div className="mt-8 rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-8 text-center">
+        {/* PLAN STATUS */}
+        <div className="mt-6 rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-5 text-center">
 
-            <div className="text-5xl">
-              📋
-            </div>
+          {plan ? (
+            <>
+              <p className="text-sm text-slate-400">
+                Active Plan
+              </p>
 
-            <h2 className="mt-4 text-2xl font-bold text-yellow-400">
-              No Active Plan
-            </h2>
+              <p className="mt-1 text-2xl font-bold text-cyan-400">
+                {plan.plan_name}
+              </p>
 
-            <p className="mt-3 text-slate-300">
-              Please activate a plan before completing
-              daily tasks.
+              <p className="mt-2 text-sm text-green-400">
+                Your daily tasks are active.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-xl font-bold text-yellow-400">
+                🔒 No Plan Active
+              </p>
+
+              <p className="mt-2 text-sm text-slate-300">
+                {totalCount} tasks are available,
+                but they are locked until a plan is activated.
+              </p>
+
+              <Link
+                href="/plans"
+                className="mt-4 inline-block rounded-xl bg-cyan-500 px-6 py-3 font-bold text-slate-950"
+              >
+                Activate Plan
+              </Link>
+            </>
+          )}
+
+        </div>
+
+        {/* TASK SUMMARY */}
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+
+          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-5">
+            <p className="text-sm text-slate-400">
+              Tasks
             </p>
 
-            <a
-              href="/plans"
-              className="mt-6 inline-block rounded-xl bg-cyan-500 px-6 py-3 font-bold text-slate-950"
-            >
-              View Plans
-            </a>
+            <p className="mt-2 text-3xl font-bold text-cyan-400">
+              {totalCount}
+            </p>
+
+            {!plan && (
+              <p className="mt-1 text-xs text-yellow-400">
+                Locked
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-green-400/20 bg-green-400/10 p-5">
+            <p className="text-sm text-slate-400">
+              Tasks Completed
+            </p>
+
+            <p className="mt-2 text-3xl font-bold text-green-400">
+              {completedCount} / {totalCount}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-5">
+            <p className="text-sm text-slate-400">
+              Today Earned
+            </p>
+
+            <p className="mt-2 text-3xl font-bold text-yellow-400">
+              Rs. {totalEarned.toLocaleString()}
+            </p>
+          </div>
+
+        </div>
+
+        {/* PROGRESS */}
+        {plan && (
+          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
+
+            <div className="mb-3 flex justify-between text-sm">
+              <span className="text-slate-400">
+                Daily Progress
+              </span>
+
+              <span className="font-bold text-cyan-400">
+                {completedCount} / {totalCount}
+              </span>
+            </div>
+
+            <div className="h-3 overflow-hidden rounded-full bg-slate-800">
+              <div
+                className="h-full rounded-full bg-cyan-400 transition-all duration-500"
+                style={{
+                  width:
+                    totalCount === 0
+                      ? "0%"
+                      : (completedCount /
+                          totalCount) *
+                          100 +
+                        "%",
+                }}
+              />
+            </div>
 
           </div>
-        ) : (
-          <>
-            {/* PLAN SUMMARY */}
-            <div className="mt-8 grid gap-4 sm:grid-cols-3">
+        )}
 
-              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-5">
-                <p className="text-sm text-slate-400">
-                  Active Plan
-                </p>
+        {/* TASKS */}
+        <div className="mt-8">
 
-                <p className="mt-2 text-3xl font-bold text-cyan-400">
-                  {plan.plan_name}
-                </p>
-              </div>
+          <div className="mb-4 flex items-center justify-between">
 
-              <div className="rounded-2xl border border-green-400/20 bg-green-400/10 p-5">
-                <p className="text-sm text-slate-400">
-                  Tasks Completed
-                </p>
+            <h2 className="text-2xl font-bold">
+              Today&apos;s Tasks
+            </h2>
 
-                <p className="mt-2 text-3xl font-bold text-green-400">
-                  {completedCount} / {totalCount}
-                </p>
-              </div>
+            <span className="rounded-full bg-cyan-400/10 px-4 py-2 text-sm font-bold text-cyan-400">
+              Rs. {TASK_EARNING} / Task
+            </span>
 
-              <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-5">
-                <p className="text-sm text-slate-400">
-                  Today Earned
-                </p>
+          </div>
 
-                <p className="mt-2 text-3xl font-bold text-yellow-400">
-                  Rs. {totalEarned.toLocaleString()}
-                </p>
-              </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 
-            </div>
+            {tasks.map((task) => {
 
-            {/* PROGRESS */}
-            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
+              const isWorking =
+                workingTask === task.task_number;
 
-              <div className="mb-3 flex justify-between text-sm">
-                <span className="text-slate-400">
-                  Daily Progress
-                </span>
-
-                <span className="font-bold text-cyan-400">
-                  {completedCount} / {totalCount}
-                </span>
-              </div>
-
-              <div className="h-3 overflow-hidden rounded-full bg-slate-800">
+              return (
                 <div
-                  className="h-full rounded-full bg-cyan-400 transition-all duration-500"
-                  style={{
-                    width:
-                      totalCount === 0
-                        ? "0%"
-                        : (completedCount /
-                            totalCount) *
-                            100 +
-                          "%",
-                  }}
-                />
-              </div>
+                  key={task.task_number}
+                  className={
+                    "rounded-2xl border p-5 transition " +
+                    (
+                      task.completed
+                        ? "border-green-400/20 bg-green-400/5"
+                        : !plan
+                        ? "border-white/10 bg-white/5"
+                        : isWorking
+                        ? "border-yellow-400/30 bg-yellow-400/5"
+                        : "border-white/10 bg-white/5 hover:border-cyan-400/30"
+                    )
+                  }
+                >
 
-            </div>
+                  <div className="flex items-center justify-between">
 
-            {/* TASKS */}
-            <div className="mt-8">
+                    <div>
+                      <p className="text-sm text-slate-400">
+                        Daily Task
+                      </p>
 
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-2xl font-bold">
-                  Today&apos;s Tasks
-                </h2>
+                      <h3 className="mt-1 text-2xl font-bold">
+                        #{task.task_number}
+                      </h3>
+                    </div>
 
-                <span className="rounded-full bg-cyan-400/10 px-4 py-2 text-sm font-bold text-cyan-400">
-                  Rs. {TASK_EARNING} / Task
-                </span>
-              </div>
+                    <div className="text-3xl">
+                      {task.completed
+                        ? "✅"
+                        : !plan
+                        ? "🔒"
+                        : isWorking
+                        ? "⏳"
+                        : "🎯"}
+                    </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  </div>
 
-                {tasks.map((task) => {
+                  <div className="mt-5">
 
-                  const isWorking =
-                    workingTask ===
-                    task.task_number;
+                    <p className="text-sm text-slate-400">
+                      Task Reward
+                    </p>
 
-                  return (
-                    <div
-                      key={task.task_number}
+                    <p className="mt-1 text-2xl font-bold text-green-400">
+                      Rs. {TASK_EARNING}
+                    </p>
+
+                  </div>
+
+                  {!plan ? (
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        completeTask(
+                          task.task_number
+                        )
+                      }
+                      className="mt-5 w-full cursor-not-allowed rounded-xl bg-white/10 px-4 py-3 font-bold text-slate-500"
+                    >
+                      🔒 Locked — Activate Plan
+                    </button>
+
+                  ) : isWorking ? (
+
+                    <div className="mt-5">
+
+                      <div className="mb-2 flex justify-between text-sm">
+
+                        <span className="text-yellow-400">
+                          Completing...
+                        </span>
+
+                        <span className="font-bold text-yellow-400">
+                          {countdown}s
+                        </span>
+
+                      </div>
+
+                      <div className="h-3 overflow-hidden rounded-full bg-slate-800">
+
+                        <div
+                          className="h-full rounded-full bg-yellow-400 transition-all duration-1000"
+                          style={{
+                            width:
+                              ((COUNTDOWN_SECONDS -
+                                countdown) /
+                                COUNTDOWN_SECONDS) *
+                                100 +
+                              "%",
+                          }}
+                        />
+
+                      </div>
+
+                    </div>
+
+                  ) : (
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        completeTask(
+                          task.task_number
+                        )
+                      }
+                      disabled={task.completed}
                       className={
-                        "rounded-2xl border p-5 transition " +
+                        "mt-5 w-full rounded-xl px-4 py-3 font-bold transition " +
                         (
                           task.completed
-                            ? "border-green-400/20 bg-green-400/5"
-                            : isWorking
-                            ? "border-yellow-400/30 bg-yellow-400/5"
-                            : "border-white/10 bg-white/5 hover:border-cyan-400/30"
+                            ? "cursor-not-allowed bg-green-500/20 text-green-400"
+                            : "bg-cyan-500 text-slate-950 hover:scale-[1.02]"
                         )
                       }
                     >
 
-                      <div className="flex items-center justify-between">
+                      {task.completed
+                        ? "✓ Completed"
+                        : "Start Task"}
 
-                        <div>
-                          <p className="text-sm text-slate-400">
-                            Daily Task
-                          </p>
+                    </button>
 
-                          <h3 className="mt-1 text-2xl font-bold">
-                            #{task.task_number}
-                          </h3>
-                        </div>
-
-                        <div className="text-3xl">
-                          {task.completed
-                            ? "✅"
-                            : isWorking
-                            ? "⏳"
-                            : "🎯"}
-                        </div>
-
-                      </div>
-
-                      <div className="mt-5">
-
-                        <p className="text-sm text-slate-400">
-                          Task Reward
-                        </p>
-
-                        <p className="mt-1 text-2xl font-bold text-green-400">
-                          Rs. {TASK_EARNING}
-                        </p>
-
-                      </div>
-
-                      {isWorking ? (
-                        <div className="mt-5">
-
-                          <div className="mb-2 flex justify-between text-sm">
-                            <span className="text-yellow-400">
-                              Completing...
-                            </span>
-
-                            <span className="font-bold text-yellow-400">
-                              {countdown}s
-                            </span>
-                          </div>
-
-                          <div className="h-3 overflow-hidden rounded-full bg-slate-800">
-                            <div
-                              className="h-full rounded-full bg-yellow-400 transition-all duration-1000"
-                              style={{
-                                width:
-                                  ((COUNTDOWN_SECONDS -
-                                    countdown) /
-                                    COUNTDOWN_SECONDS) *
-                                    100 +
-                                  "%",
-                              }}
-                            />
-                          </div>
-
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            completeTask(
-                              task.task_number
-                            )
-                          }
-                          disabled={task.completed}
-                          className={
-                            "mt-5 w-full rounded-xl px-4 py-3 font-bold transition " +
-                            (
-                              task.completed
-                                ? "cursor-not-allowed bg-green-500/20 text-green-400"
-                                : "bg-cyan-500 text-slate-950 hover:scale-[1.02]"
-                            )
-                          }
-                        >
-                          {task.completed
-                            ? "✓ Completed"
-                            : "Start Task"}
-                        </button>
-                      )}
-
-                    </div>
-                  );
-                })}
-
-              </div>
-            </div>
-
-            {/* MESSAGE */}
-            {message !== "" && (
-              <div className="mt-6 rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-center text-cyan-300">
-                {message}
-              </div>
-            )}
-
-            {/* ALL COMPLETE */}
-            {completedCount === totalCount &&
-              totalCount > 0 && (
-                <div className="mt-6 rounded-2xl border border-green-400/20 bg-green-400/10 p-6 text-center">
-
-                  <div className="text-4xl">
-                    🎉
-                  </div>
-
-                  <h2 className="mt-3 text-2xl font-bold text-green-400">
-                    All Daily Tasks Completed
-                  </h2>
-
-                  <p className="mt-2 text-slate-300">
-                    Today&apos;s total task earning:
-                    {" "}
-                    <b className="text-green-400">
-                      Rs.{" "}
-                      {totalEarned.toLocaleString()}
-                    </b>
-                  </p>
+                  )}
 
                 </div>
-              )}
-          </>
+              );
+            })}
+
+          </div>
+        </div>
+
+        {/* MESSAGE */}
+        {message !== "" && (
+          <div className="mt-6 rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-center text-cyan-300">
+            {message}
+          </div>
         )}
 
+        {/* ALL COMPLETE */}
+        {plan &&
+          completedCount === totalCount &&
+          totalCount > 0 && (
+
+            <div className="mt-6 rounded-2xl border border-green-400/20 bg-green-400/10 p-6 text-center">
+
+              <div className="text-4xl">
+                🎉
+              </div>
+
+              <h2 className="mt-3 text-2xl font-bold text-green-400">
+                All Daily Tasks Completed
+              </h2>
+
+              <p className="mt-2 text-slate-300">
+                Today&apos;s total task earning:
+                {" "}
+                <b className="text-green-400">
+                  Rs.{" "}
+                  {totalEarned.toLocaleString()}
+                </b>
+              </p>
+
+            </div>
+          )}
+
         {/* BACK */}
-        <a
+        <Link
           href="/dashboard"
           className="mt-8 inline-block rounded-xl bg-white/10 px-6 py-3 font-bold hover:bg-white/20"
         >
           ← Back to Dashboard
-        </a>
+        </Link>
 
       </div>
     </main>
