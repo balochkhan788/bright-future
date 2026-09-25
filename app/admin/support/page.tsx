@@ -448,56 +448,56 @@ export default function AdminSupport() {
                     </div>
                   )}
 
-                  <form onSubmit={sendReply}>
+                  {/* SCREENSHOT BUTTON - CLEARLY VISIBLE */}
+                  <div className="mb-3">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleScreenshot}
+                      className="hidden"
+                    />
 
-                    {/* Screenshot button — always visible */}
-                    <div className="mb-3">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleScreenshot}
-                        className="hidden"
+                    <button
+                      type="button"
+                      onClick={() =>
+                        fileInputRef.current?.click()
+                      }
+                      disabled={sending}
+                      className="w-full rounded-xl border-2 border-cyan-400 bg-cyan-400/10 px-4 py-4 text-center text-lg font-bold text-cyan-300 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      📷 Screenshot Upload
+                    </button>
+                  </div>
+
+                  {preview && (
+                    <div className="mb-3 rounded-xl border border-cyan-400/30 bg-slate-900 p-3">
+
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold text-cyan-400">
+                          🖼️ Screenshot Preview
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={removeScreenshot}
+                          disabled={sending}
+                          className="rounded-lg bg-red-500/10 px-3 py-1 text-xs font-bold text-red-400"
+                        >
+                          Remove
+                        </button>
+                      </div>
+
+                      <img
+                        src={preview}
+                        alt="Screenshot preview"
+                        className="max-h-56 w-full rounded-xl object-contain"
                       />
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          fileInputRef.current?.click()
-                        }
-                        disabled={sending}
-                        className="w-full rounded-xl border-2 border-cyan-400/50 bg-cyan-400/10 px-4 py-4 text-center font-bold text-cyan-300 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        📷 Screenshot Upload
-                      </button>
                     </div>
+                  )}
 
-                    {preview && (
-                      <div className="mb-3 rounded-xl border border-cyan-400/30 bg-slate-900 p-3">
-
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                          <span className="text-sm font-bold text-cyan-400">
-                            🖼️ Screenshot Preview
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={removeScreenshot}
-                            disabled={sending}
-                            className="rounded-lg bg-red-500/10 px-3 py-1 text-xs font-bold text-red-400"
-                          >
-                            Remove
-                          </button>
-                        </div>
-
-                        <img
-                          src={preview}
-                          alt="Screenshot preview"
-                          className="max-h-56 w-full rounded-xl object-contain"
-                        />
-
-                      </div>
-                    )}
+                  <form onSubmit={sendReply}>
 
                     <textarea
                       value={reply}
