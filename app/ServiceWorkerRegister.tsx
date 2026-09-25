@@ -6,23 +6,34 @@ export default function ServiceWorkerRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
-    const registerServiceWorker = async () => {
+    const register = async () => {
       try {
-        const registration = await navigator.serviceWorker.register(
-          "/bright-future-sw-v2.js",
+        const registrations =
+          await navigator.serviceWorker.getRegistrations();
+
+        for (const registration of registrations) {
+          await registration.unregister();
+        }
+
+        const cacheNames = await caches.keys();
+
+        await Promise.all(
+          cacheNames.map((name) => caches.delete(name))
+        );
+
+        await navigator.serviceWorker.register(
+          "/bright-future-sw-v3.js",
           {
             scope: "/",
             updateViaCache: "none",
           }
         );
-
-        await registration.update();
       } catch (error) {
-        console.error("Service Worker registration failed:", error);
+        console.error("Service Worker update failed:", error);
       }
     };
 
-    registerServiceWorker();
+    register();
   }, []);
 
   return null;

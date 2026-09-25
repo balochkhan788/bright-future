@@ -1,6 +1,6 @@
-const CACHE_NAME = "bright-future-v1";
+const CACHE_NAME = "bright-future-v3";
 
-self.addEventListener("install", (event) => {
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
