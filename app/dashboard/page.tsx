@@ -399,41 +399,41 @@ export default function Dashboard() {
 
           <div className="relative w-full h-56 sm:h-72 md:h-80">
 
-            <img
-              src={slideImages[slide]}
-              alt={
-                "Bright Future Slide " +
-                (slide + 1)
-              }
-              className="w-full h-full object-cover"
-            />
+  <img
+    src={slideImages[slide]}
+    alt={
+      "Bright Future Slide " +
+      (slide + 1)
+    }
+    className="w-full h-full object-cover"
+  />
 
-            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+  <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
 
-              {slideImages.map(
-                (_, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() =>
-                      setSlide(index)
-                    }
-                    aria-label={
-                      "Slide " +
-                      (index + 1)
-                    }
-                    className={
-                      slide === index
-                        ? "h-3 w-8 rounded-full bg-white shadow"
-                        : "h-3 w-3 rounded-full bg-white/60"
-                    }
-                  />
-                )
-              )}
+    {slideImages.map(
+      (_, index) => (
+        <button
+          key={index}
+          type="button"
+          onClick={() =>
+            setSlide(index)
+          }
+          aria-label={
+            "Slide " +
+            (index + 1)
+          }
+          className={
+            slide === index
+              ? "h-3 w-8 rounded-full bg-white shadow"
+              : "h-3 w-3 rounded-full bg-white/60"
+          }
+        />
+      )
+    )}
 
-            </div>
+  </div>
 
-          </div>
+</div>
 
         </section>
 
@@ -688,195 +688,192 @@ export default function Dashboard() {
 
         {/* QUICK ACTIONS */}
 <section>
-
   <h2 className="text-lg font-bold text-slate-800 mb-3">
     Quick Actions
   </h2>
 
-  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+  <div className="bg-white rounded-2xl shadow border border-slate-200 overflow-hidden">
+    <div className="divide-y divide-slate-200">
 
-    <Link
-      href="/plans"
-      className="bg-blue-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-    >
-      <div className="text-3xl mb-2">
-        📋
-      </div>
-      Plans
-    </Link>
+      <Link
+        href="/plans"
+        className="flex items-center justify-between p-4 hover:bg-slate-50"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">📋</span>
+          <span className="font-semibold text-slate-800">
+            Plans
+          </span>
+        </div>
+        <span className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white">
+          Open
+        </span>
+      </Link>
 
-    <Link
-      href="/deposit"
-      className="bg-green-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-    >
-      <div className="text-3xl mb-2">
-        💰
-      </div>
-      Deposit
-    </Link>
+      <Link
+        href="/deposit"
+        className="flex items-center justify-between p-4 hover:bg-slate-50"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">💰</span>
+          <span className="font-semibold text-slate-800">
+            Deposit
+          </span>
+        </div>
+        <span className="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white">
+          Open
+        </span>
+      </Link>
 
-    <Link
-      href="/withdraw"
-      className="bg-orange-500 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-    >
-      <div className="text-3xl mb-2">
-        💸
-      </div>
-      Withdraw
-    </Link>
+      <Link
+        href="/withdraw"
+        className="flex items-center justify-between p-4 hover:bg-slate-50"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">💸</span>
+          <span className="font-semibold text-slate-800">
+            Withdraw
+          </span>
+        </div>
+        <span className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-bold text-white">
+          Open
+        </span>
+      </Link>
 
-    <Link
-      href="/transactions"
-      className="bg-purple-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-    >
-      <div className="text-3xl mb-2">
-        📊
-      </div>
-      Transactions
-    </Link>
+      <Link
+        href="/transactions"
+        className="flex items-center justify-between p-4 hover:bg-slate-50"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">📊</span>
+          <span className="font-semibold text-slate-800">
+            Transactions
+          </span>
+        </div>
+        <span className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-bold text-white">
+          Open
+        </span>
+      </Link>
 
-    <Link
-      href="/task"
-      className="bg-indigo-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-    >
-      <div className="text-3xl mb-2">
-        🎯
-      </div>
-      Daily Task
-    </Link>
+      <Link
+        href="/task"
+        className="flex items-center justify-between p-4 hover:bg-slate-50"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🎯</span>
+          <span className="font-semibold text-slate-800">
+            Daily Task
+          </span>
+        </div>
+        <span className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white">
+          Open
+        </span>
+      </Link>
 
-    <Link
-      href="/referral"
-      className="bg-pink-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-    >
-      <div className="text-3xl mb-2">
-        👥
-      </div>
-      Referral
-    </Link>
+      <Link
+        href="/referral"
+        className="flex items-center justify-between p-4 hover:bg-slate-50"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">👥</span>
+          <span className="font-semibold text-slate-800">
+            Referral
+          </span>
+        </div>
+        <span className="rounded-lg bg-pink-600 px-4 py-2 text-sm font-bold text-white">
+          Open
+        </span>
+      </Link>
 
-    <Link
-      href="/referral-rewards"
-      className="bg-rose-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-    >
-      <div className="text-3xl mb-2">
-        🎁
-      </div>
-      Referral Rewards
-    </Link>
+      <Link
+        href="/referral-rewards"
+        className="flex items-center justify-between p-4 hover:bg-slate-50"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🎁</span>
+          <span className="font-semibold text-slate-800">
+            Referral Rewards
+          </span>
+        </div>
+        <span className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white">
+          Open
+        </span>
+      </Link>
 
-    <Link
-      href="/spin-wheel"
-      className="bg-cyan-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-    >
-      <div className="text-3xl mb-2">
-        🎡
-      </div>
-      Spin Wheel
-    </Link>
+      <Link
+        href="/spin-wheel"
+        className="flex items-center justify-between p-4 hover:bg-slate-50"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🎡</span>
+          <span className="font-semibold text-slate-800">
+            Spin Wheel
+          </span>
+        </div>
+        <span className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-bold text-white">
+          Open
+        </span>
+      </Link>
 
-    <Link
-      href="/profile"
-      className="bg-slate-700 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-    >
-      <div className="text-3xl mb-2">
-        👤
-      </div>
-      Profile
-    </Link>
-<Link
-  href="/rules"
-  className="bg-slate-800 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
->
-  <div className="text-3xl mb-2">
-    📋
+      <Link
+        href="/profile"
+        className="flex items-center justify-between p-4 hover:bg-slate-50"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">👤</span>
+          <span className="font-semibold text-slate-800">
+            Profile
+          </span>
+        </div>
+        <span className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-bold text-white">
+          Open
+        </span>
+      </Link>
+
+      <Link
+        href="/rules"
+        className="flex items-center justify-between p-4 hover:bg-slate-50"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">📋</span>
+          <span className="font-semibold text-slate-800">
+            Rules
+          </span>
+        </div>
+        <span className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-bold text-white">
+          Open
+        </span>
+      </Link>
+
+      <Link
+        href="/support-partner"
+        className="flex items-center justify-between p-4 hover:bg-slate-50"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🤝</span>
+          <span className="font-semibold text-slate-800">
+            Support Partner
+          </span>
+        </div>
+        <span className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-bold text-white">
+          Open
+        </span>
+      </Link>
+
+    </div>
+
+    <div className="border-t border-slate-200 p-4">
+      <button
+        type="button"
+        onClick={installApp}
+        className="w-full rounded-xl bg-cyan-500 p-3 font-bold text-slate-950 shadow"
+      >
+        📲 Install Bright Future App
+      </button>
+    </div>
   </div>
-  Rules
-</Link>
-    <Link
-      href="/support-partner"
-      className="bg-teal-600 text-white rounded-xl p-4 text-center font-semibold shadow-md hover:scale-105 transition"
-    >
-      <div className="text-3xl mb-2">
-        🤝
-      </div>
-      Support Partner
-    </Link>
-
-    <button
-      type="button"
-      onClick={installApp}
-      className="col-span-2 lg:col-span-4 w-full rounded-xl bg-cyan-500 p-4 font-bold text-slate-950 shadow-lg hover:scale-[1.02] transition cursor-pointer"
-    >
-      <div className="text-3xl mb-1">
-        📲
-      </div>
-      Install Bright Future App
-    </button>
-
-  </div>
-
 </section>
-
-        {/* ACCOUNT INFORMATION */}
-        <section className="bg-white rounded-2xl shadow p-5">
-
-          <h2 className="text-lg font-bold text-slate-800 mb-4">
-            Account Information
-          </h2>
-
-          <div className="space-y-3 text-sm">
-
-            <div className="flex justify-between border-b pb-3">
-              <span className="text-slate-500">
-                Current Plan
-              </span>
-
-              <span className="font-semibold text-slate-800">
-                {planName}
-              </span>
-            </div>
-
-            <div className="flex justify-between border-b pb-3">
-              <span className="text-slate-500">
-                Available Balance
-              </span>
-
-              <span className="font-semibold text-green-600">
-                Rs{" "}
-                {balance.toLocaleString()}
-              </span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="text-slate-500">
-                Total Earnings
-              </span>
-
-              <span className="font-semibold text-blue-600">
-                Rs{" "}
-                {totalEarnings.toLocaleString()}
-              </span>
-            </div>
-
-          </div>
-
-        </section>
-
-        {/* NOTICE */}
-        <section className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5">
-
-          <h2 className="font-bold text-yellow-800">
-            Important Notice
-          </h2>
-
-          <p className="text-sm text-yellow-700 mt-2">
-            Please review your account activity and transaction information regularly.
-          </p>
-
-        </section>
-
-      </div>
-    </main>
+    </div>
+  </main>
   );
 }
