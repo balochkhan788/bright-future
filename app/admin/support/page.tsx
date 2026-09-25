@@ -12,11 +12,6 @@ type SupportMessage = {
   created_at: string;
 };
 
-type Conversation = {
-  user_id: string;
-  messages: SupportMessage[];
-};
-
 type UserEmail = {
   user_id: string;
   email: string;
@@ -29,27 +24,26 @@ export default function AdminSupport() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
-  const [unreadUsers, setUnreadUsers] = useState<string[]>([]);
   const [userEmails, setUserEmails] = useState<UserEmail[]>([]);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState("");
   const [error, setError] = useState("");
 
-  async function loadMessages() {
-    const supportTable = supabase.from(
-      "support_messages"
-    ) as any;
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const supportTable = supabase.from(
+    "support_messages"
+  ) as any;
+
+  async function loadMessages() {
     const { data, error } = await supportTable
       .select("*")
-      .order("created_at", { ascending: true });
+      .order("created_at", {
+        ascending: true,
+      });
 
     if (!error) {
-      setMessages((data || []) as SupportMessage[]);
-    } else {
-      console.error(error);
+      setMessages(data || []);
     }
 
     setLoading(false);
@@ -60,20 +54,9 @@ export default function AdminSupport() {
       "get_support_user_emails"
     );
 
-    if (error) {
-      console.error("Failed to load user emails:", error);
-      return;
+    if (!error) {
+      setUserEmails(data || []);
     }
-
-    setUserEmails(data || []);
-  }
-
-  function getUserEmail(userId: string) {
-    const user = userEmails.find(
-      (item) => item.user_id === userId
-    );
-
-    return user?.email || userId;
   }
 
   useEffect(() => {
@@ -89,30 +72,8 @@ export default function AdminSupport() {
           schema: "public",
           table: "support_messages",
         },
-        (payload) => {
-          const newMessage =
-            payload.new as SupportMessage;
-
-          setMessages((current) => [
-            ...current,
-            newMessage,
-          ]);
-
-          if (
-            newMessage.sender_role === "user" &&
-            newMessage.user_id !== selectedUser
-          ) {
-            setUnreadUsers((current) => {
-              if (current.includes(newMessage.user_id)) {
-                return current;
-              }
-
-              return [
-                ...current,
-                newMessage.user_id,
-              ];
-            });
-          }
+        () => {
+          loadMessages();
         }
       )
       .subscribe();
@@ -120,42 +81,29 @@ export default function AdminSupport() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedUser]);
+  }, []);
 
-  const conversations: Conversation[] = [];
-
-  messages.forEach((message) => {
-    const existing = conversations.find(
-      (conversation) =>
-        conversation.user_id === message.user_id
-    );
-
-    if (existing) {
-      existing.messages.push(message);
-    } else {
-      conversations.push({
-        user_id: message.user_id,
-        messages: [message],
-      });
-    }
-  });
-
-  const selectedConversation = conversations.find(
-    (conversation) =>
-      conversation.user_id === selectedUser
+  const conversations = Array.from(
+    new Set(messages.map((item) => item.user_id))
   );
 
-  function selectUser(userId: string) {
-    setSelectedUser(userId);
+  const selectedMessages = messages.filter(
+    (item) => item.user_id === selectedUser
+  );
 
-    setUnreadUsers((current) =>
-      current.filter((id) => id !== userId)
+  function getUserEmail(userId: string) {
+    const user = userEmails.find(
+      (item) => item.user_id === userId
     );
+
+    return user?.email || userId;
   }
 
   function handleScreenshot(
     e: React.ChangeEvent<HTMLInputElement>
   ) {
+    setError("");
+
     const file = e.target.files?.[0];
 
     if (!file) {
@@ -169,28 +117,20 @@ export default function AdminSupport() {
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setError("Screenshot 5 MB se kam hona chahiye.");
+      setError("Screenshot 5MB se kam hona chahiye.");
       e.target.value = "";
       return;
     }
 
-    setError("");
     setSelectedFile(file);
 
-    if (preview) {
-      URL.revokeObjectURL(preview);
-    }
-
-    setPreview(URL.createObjectURL(file));
+    const imageUrl = URL.createObjectURL(file);
+    setPreview(imageUrl);
   }
 
   function removeScreenshot() {
-    if (preview) {
-      URL.revokeObjectURL(preview);
-    }
-
     setSelectedFile(null);
-    setPreview(null);
+    setPreview("");
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -202,11 +142,11 @@ export default function AdminSupport() {
   ) {
     e.preventDefault();
 
-    if (
-      !selectedUser ||
-      (!reply.trim() && !selectedFile) ||
-      sending
-    ) {
+    if (!selectedUser || sending) {
+      return;
+    }
+
+    if (!reply.trim() && !selectedFile) {
       return;
     }
 
@@ -218,10 +158,7 @@ export default function AdminSupport() {
 
       if (selectedFile) {
         const extension =
-          selectedFile.name
-            .split(".")
-            .pop()
-            ?.toLowerCase() || "jpg";
+          selectedFile.name.split(".").pop() || "png";
 
         const filePath =
           '${selectedUser}/admin-${Date.now()}.${extension}';
@@ -229,34 +166,32 @@ export default function AdminSupport() {
         const { error: uploadError } =
           await supabase.storage
             .from("support-screenshots")
-            .upload(filePath, selectedFile, {
-              contentType: selectedFile.type,
-              upsert: false,
-            });
+            .upload(
+              filePath,
+              selectedFile,
+              {
+                upsert: false,
+              }
+            );
 
         if (uploadError) {
           throw uploadError;
         }
 
-        const { data: publicUrlData } =
+        const { data: publicData } =
           supabase.storage
             .from("support-screenshots")
             .getPublicUrl(filePath);
 
         screenshotUrl =
-          publicUrlData.publicUrl;
+          publicData.publicUrl;
       }
-
-      const supportTable = supabase.from(
-        "support_messages"
-      ) as any;
 
       const { error: insertError } =
         await supportTable.insert({
           user_id: selectedUser,
           sender_role: "support",
-          message:
-            reply.trim() || "Screenshot attached",
+          message: reply.trim(),
           screenshot_url: screenshotUrl,
         });
 
@@ -270,269 +205,274 @@ export default function AdminSupport() {
       await loadMessages();
     } catch (err) {
       console.error(err);
-      setError("Reply send nahi ho saka.");
+
+      setError(
+        "Message send nahi ho saka. Dobara try karein."
+      );
     } finally {
       setSending(false);
     }
   }
 
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-slate-950 p-6 text-white">
+        <div className="mx-auto max-w-6xl text-center">
+          Loading Support Messages...
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="min-h-screen bg-slate-950 p-4 text-white sm:p-6">
+    <main className="min-h-screen bg-slate-950 p-4 text-white md:p-6">
       <div className="mx-auto max-w-6xl">
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-          <h1 className="text-3xl font-bold">
-            Support{" "}
-            <span className="text-cyan-400">
-              Messages
-            </span>
-          </h1>
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">
+              Support Partner
+            </h1>
 
-          <p className="mt-2 text-sm text-slate-400">
-            Users ke messages aur replies manage karein.
-          </p>
+            <p className="mt-1 text-sm text-slate-400">
+              User support messages
+            </p>
+          </div>
+
+          <a
+            href="/admin"
+            className="rounded-xl bg-white px-4 py-2 font-bold text-slate-900"
+          >
+            ← Admin
+          </a>
         </div>
 
-        {loading ? (
-          <div className="mt-5 rounded-2xl bg-white/5 p-6">
-            Loading...
-          </div>
-        ) : (
-          <div className="mt-5 grid gap-5 md:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-3">
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          {/* USERS */}
 
-              <h2 className="mb-4 text-lg font-bold">
-                Users
-              </h2>
+          <section className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <h2 className="mb-4 text-xl font-bold">
+              Users
+            </h2>
 
-              {conversations.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  No messages yet.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {conversations.map((conversation) => {
-                    const lastMessage =
-                      conversation.messages[
-                        conversation.messages.length - 1
-                      ];
+            {conversations.length === 0 ? (
+              <p className="text-sm text-slate-400">
+                No support messages yet.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {conversations.map((userId) => (
+                  <button
+                    key={userId}
+                    type="button"
+                    onClick={() =>
+                      setSelectedUser(userId)
+                    }
+                    className={`w-full rounded-xl p-4 text-left transition ${
+                      selectedUser === userId
+                        ? "bg-cyan-500 text-slate-950"
+                        : "bg-slate-900 text-white hover:bg-slate-800"
+                    }`}
+                  >
+                    <div className="font-bold">
+                      {getUserEmail(userId)}
+                    </div>
 
-                    const isUnread =
-                      unreadUsers.includes(
-                        conversation.user_id
-                      );
+                    <div className="mt-1 text-xs opacity-70">
+                      {userId}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
 
-                    return (
-                      <button
-                        key={conversation.user_id}
-                        type="button"
-                        onClick={() =>
-                          selectUser(
-                            conversation.user_id
-                          )
-                        }
-                        className={`w-full rounded-xl p-4 text-left ${
-                          selectedUser ===
-                          conversation.user_id
-                            ? "bg-cyan-500 text-slate-950"
-                            : "bg-white/10 text-white"
+          {/* CHAT */}
+
+          <section className="md:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-4">
+
+            {!selectedUser ? (
+              <div className="flex min-h-[500px] items-center justify-center text-center text-slate-400">
+                <div>
+                  <div className="text-5xl">💬</div>
+
+                  <p className="mt-3 font-semibold">
+                    Select a user to open chat
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4 rounded-xl bg-slate-900 p-4">
+                  <h2 className="font-bold">
+                    {getUserEmail(selectedUser)}
+                  </h2>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    {selectedUser}
+                  </p>
+                </div>
+
+                {/* MESSAGES */}
+
+                <div className="mb-5 max-h-[450px] space-y-3 overflow-y-auto pr-1">
+
+                  {selectedMessages.length === 0 ? (
+                    <p className="text-center text-slate-500">
+                      No messages yet.
+                    </p>
+                  ) : (
+                    selectedMessages.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`flex ${
+                          item.sender_role === "support"
+                            ? "justify-end"
+                            : "justify-start"
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-2">
-
-                          <p className="break-all text-sm font-semibold">
-                            {getUserEmail(
-                              conversation.user_id
-                            )}
-                          </p>
-
-                          {isUnread && (
-                            <span className="shrink-0 rounded-full bg-red-500 px-2 py-1 text-[10px] font-bold text-white">
-                              NEW
-                            </span>
+                        <div
+                          className={`max-w-[85%] rounded-2xl p-4 ${
+                            item.sender_role === "support"
+                              ? "bg-cyan-500 text-slate-950"
+                              : "bg-slate-800 text-white"
+                          }`}
+                        >
+                          {item.message && (
+                            <p className="whitespace-pre-wrap">
+                              {item.message}
+                            </p>
                           )}
 
-                        </div>
-
-                        <p className="mt-1 truncate text-xs opacity-70">
-                          {lastMessage.message}
-                        </p>
-
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:col-span-2">
-
-              {!selectedConversation ? (
-                <div className="flex h-[500px] items-center justify-center text-slate-500">
-                  Select a user to view messages.
-                </div>
-              ) : (
-                <>
-                  <div className="mb-4 rounded-xl bg-cyan-500/10 p-3">
-                    <p className="text-xs text-slate-400">
-                      User
-                    </p>
-
-                    <p className="mt-1 break-all font-semibold text-cyan-300">
-                      {getUserEmail(selectedUser!)}
-                    </p>
-                  </div>
-
-                  <div className="mb-4 h-[400px] overflow-y-auto rounded-xl bg-slate-900 p-4">
-
-                    <div className="space-y-3">
-                      {selectedConversation.messages.map(
-                        (item) => (
-                          <div
-                            key={item.id}
-                            className={`flex ${
-                              item.sender_role === "support"
-                                ? "justify-end"
-                                : "justify-start"
-                            }`}
-                          >
-                            <div
-                              className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                                item.sender_role ===
-                                "support"
-                                  ? "bg-cyan-500 text-slate-950"
-                                  : "bg-white/10 text-white"
-                              }`}
+                          {item.screenshot_url && (
+                            <a
+                              href={item.screenshot_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-3 block"
                             >
-                              <p className="whitespace-pre-wrap text-sm">
-                                {item.message}
-                              </p>
+                              <img
+                                src={item.screenshot_url}
+                                alt="Screenshot"
+                                className="max-h-72 w-full rounded-xl object-contain"
+                              />
+                            </a>
+                          )}
 
-                              {item.screenshot_url && (
-                                <a
-                                  href={
-                                    item.screenshot_url
-                                  }
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="block"
-                                >
-                                  <img
-                                    src={
-                                      item.screenshot_url
-                                    }
-                                    alt="Support screenshot"
-                                    className="mt-3 max-h-64 rounded-xl object-contain"
-                                  />
-                                </a>
-                              )}
-
-                              <p className="mt-1 text-[10px] opacity-60">
-                                {new Date(
-                                  item.created_at
-                                ).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                        )
-                      )}
-                    </div>
-
-                  </div>
-
-                  {error && (
-                    <div className="mb-3 rounded-xl bg-red-500/10 p-3 text-center text-sm font-semibold text-red-400">
-                      {error}
-                    </div>
-                  )}
-
-                  {/* SCREENSHOT BUTTON - CLEARLY VISIBLE */}
-                  <div className="mb-3">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleScreenshot}
-                      className="hidden"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        fileInputRef.current?.click()
-                      }
-                      disabled={sending}
-                      className="w-full rounded-xl border-2 border-cyan-400 bg-cyan-400/10 px-4 py-4 text-center text-lg font-bold text-cyan-300 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      📷 Screenshot Upload
-                    </button>
-                  </div>
-
-                  {preview && (
-                    <div className="mb-3 rounded-xl border border-cyan-400/30 bg-slate-900 p-3">
-
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <span className="text-sm font-bold text-cyan-400">
-                          🖼️ Screenshot Preview
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={removeScreenshot}
-                          disabled={sending}
-                          className="rounded-lg bg-red-500/10 px-3 py-1 text-xs font-bold text-red-400"
-                        >
-                          Remove
-                        </button>
+                          <p className="mt-2 text-xs opacity-60">
+                            {new Date(
+                              item.created_at
+                            ).toLocaleString()}
+                          </p>
+                        </div>
                       </div>
-
-                      <img
-                        src={preview}
-                        alt="Screenshot preview"
-                        className="max-h-56 w-full rounded-xl object-contain"
-                      />
-
-                    </div>
+                    ))
                   )}
 
-                  <form onSubmit={sendReply}>
+                </div>
 
-                    <textarea
-                      value={reply}
-                      onChange={(e) =>
-                        setReply(e.target.value)
-                      }
-                      placeholder="Reply to user..."
-                      rows={4}
-                      className="w-full rounded-xl border border-white/10 bg-slate-900 p-4 text-white outline-none focus:border-cyan-400"
+                {/* SCREENSHOT UPLOAD — ALWAYS VISIBLE */}
+
+                <div className="mb-3 rounded-2xl border-2 border-cyan-400 bg-cyan-400/10 p-3">
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleScreenshot}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      fileInputRef.current?.click()
+                    }
+                    disabled={sending}
+                    className="w-full rounded-xl bg-cyan-500 px-4 py-4 text-lg font-bold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    📷 Screenshot Upload
+                  </button>
+
+                  <p className="mt-2 text-center text-xs text-cyan-200">
+                    User ko screenshot bhejne ke liye yahan click karein
+                  </p>
+
+                </div>
+
+                {/* PREVIEW */}
+
+                {preview && (
+                  <div className="mb-4 rounded-2xl border border-cyan-400/30 bg-slate-900 p-3">
+
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="font-bold text-cyan-300">
+                        🖼️ Screenshot Preview
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={removeScreenshot}
+                        className="rounded-lg bg-red-500 px-3 py-1 text-sm font-bold text-white"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <img
+                      src={preview}
+                      alt="Screenshot preview"
+                      className="max-h-72 w-full rounded-xl object-contain"
                     />
 
-                    <button
-                      type="submit"
-                      disabled={
-                        (!reply.trim() &&
-                          !selectedFile) ||
-                        sending
-                      }
-                      className="mt-3 w-full rounded-xl bg-cyan-500 px-4 py-4 font-bold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {sending
-                        ? "Sending..."
-                        : selectedFile
-                        ? "📷 Send Message + Screenshot"
-                        : "Send Reply"}
-                    </button>
+                  </div>
+                )}
 
-                  </form>
-                </>
-              )}
+                {error && (
+                  <div className="mb-3 rounded-xl bg-red-500/10 p-3 text-center text-sm font-semibold text-red-400">
+                    {error}
+                  </div>
+                )}
 
-            </div>
+                {/* REPLY */}
 
-          </div>
-        )}
+                <form onSubmit={sendReply}>
+
+                  <textarea
+                    value={reply}
+                    onChange={(e) =>
+                      setReply(e.target.value)
+                    }
+                    placeholder="Reply to user..."
+                    rows={4}
+                    className="w-full rounded-xl border border-white/10 bg-slate-900 p-4 text-white outline-none focus:border-cyan-400"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={
+                      (!reply.trim() &&
+                        !selectedFile) ||
+                      sending
+                    }
+                    className="mt-3 w-full rounded-xl bg-cyan-500 px-4 py-4 font-bold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {sending
+                      ? "Sending..."
+                      : selectedFile
+                      ? "📷 Send Message + Screenshot"
+                      : "Send Reply"}
+                  </button>
+
+                </form>
+
+              </>
+            )}
+
+          </section>
+
+        </div>
 
       </div>
     </main>
