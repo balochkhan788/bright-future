@@ -144,15 +144,15 @@ export default function Withdraw() {
             </label>
 
             <input
-              type="number"
-              min="1"
-              placeholder="e.g. 5000"
-              value={amount}
-              onChange={(e) =>
-                setAmount(e.target.value)
-              }
-              className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none focus:border-yellow-400"
-            />
+  type="number"
+  min="1"
+  placeholder="Enter withdrawal amount"
+  value={amount}
+  onChange={(e) =>
+    setAmount(e.target.value)
+  }
+  className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none focus:border-yellow-400"
+/>
 
             {/* METHOD */}
 
