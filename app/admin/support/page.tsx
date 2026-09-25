@@ -224,7 +224,7 @@ export default function AdminSupport() {
             ?.toLowerCase() || "jpg";
 
         const filePath =
-  '${selectedUser}/admin-${Date.now()}.${extension}';
+  '${selectedUser}/admin-${Date.now()}.${extension}'
 
         const { error: uploadError } =
           await supabase.storage
