@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type SupportMessage = {
@@ -8,6 +8,7 @@ type SupportMessage = {
   user_id: string;
   sender_role: "user" | "support";
   message: string;
+  screenshot_url?: string | null;
   created_at: string;
 };
 
@@ -31,14 +32,24 @@ export default function AdminSupport() {
   const [unreadUsers, setUnreadUsers] = useState<string[]>([]);
   const [userEmails, setUserEmails] = useState<UserEmail[]>([]);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
   async function loadMessages() {
-    const { data, error } = await supabase
-      .from("support_messages")
+    const supportTable = supabase.from(
+      "support_messages"
+    ) as any;
+
+    const { data, error } = await supportTable
       .select("*")
       .order("created_at", { ascending: true });
 
     if (!error) {
-      setMessages(data || []);
+      setMessages((data || []) as SupportMessage[]);
+    } else {
+      console.error(error);
     }
 
     setLoading(false);
@@ -79,9 +90,13 @@ export default function AdminSupport() {
           table: "support_messages",
         },
         (payload) => {
-          const newMessage = payload.new as SupportMessage;
+          const newMessage =
+            payload.new as SupportMessage;
 
-          setMessages((current) => [...current, newMessage]);
+          setMessages((current) => [
+            ...current,
+            newMessage,
+          ]);
 
           if (
             newMessage.sender_role === "user" &&
@@ -92,7 +107,10 @@ export default function AdminSupport() {
                 return current;
               }
 
-              return [...current, newMessage.user_id];
+              return [
+                ...current,
+                newMessage.user_id,
+              ];
             });
           }
         }
@@ -123,7 +141,8 @@ export default function AdminSupport() {
   });
 
   const selectedConversation = conversations.find(
-    (conversation) => conversation.user_id === selectedUser
+    (conversation) =>
+      conversation.user_id === selectedUser
   );
 
   function selectUser(userId: string) {
@@ -134,33 +153,127 @@ export default function AdminSupport() {
     );
   }
 
+  function handleScreenshot(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setError("Sirf image screenshot upload karein.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Screenshot 5 MB se kam hona chahiye.");
+      e.target.value = "";
+      return;
+    }
+
+    setError("");
+    setSelectedFile(file);
+
+    if (preview) {
+      URL.revokeObjectURL(preview);
+    }
+
+    setPreview(URL.createObjectURL(file));
+  }
+
+  function removeScreenshot() {
+    if (preview) {
+      URL.revokeObjectURL(preview);
+    }
+
+    setSelectedFile(null);
+    setPreview(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
   async function sendReply(
     e: React.FormEvent<HTMLFormElement>
   ) {
     e.preventDefault();
 
-    if (!selectedUser || !reply.trim() || sending) {
+    if (
+      !selectedUser ||
+      (!reply.trim() && !selectedFile) ||
+      sending
+    ) {
       return;
     }
 
     setSending(true);
+    setError("");
 
-    const { error } = await supabase
-      .from("support_messages")
-      .insert({
-        user_id: selectedUser,
-        sender_role: "support",
-        message: reply.trim(),
-      });
+    try {
+      let screenshotUrl: string | null = null;
 
-    if (!error) {
+      if (selectedFile) {
+        const extension =
+          selectedFile.name
+            .split(".")
+            .pop()
+            ?.toLowerCase() || "jpg";
+
+        const filePath =
+  '${selectedUser}/admin-${Date.now()}.${extension}';
+
+        const { error: uploadError } =
+          await supabase.storage
+            .from("support-screenshots")
+            .upload(filePath, selectedFile, {
+              contentType: selectedFile.type,
+              upsert: false,
+            });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const { data: publicUrlData } =
+          supabase.storage
+            .from("support-screenshots")
+            .getPublicUrl(filePath);
+
+        screenshotUrl =
+          publicUrlData.publicUrl;
+      }
+
+      const supportTable = supabase.from(
+        "support_messages"
+      ) as any;
+
+      const { error: insertError } =
+        await supportTable.insert({
+          user_id: selectedUser,
+          sender_role: "support",
+          message:
+            reply.trim() || "Screenshot attached",
+          screenshot_url: screenshotUrl,
+        });
+
+      if (insertError) {
+        throw insertError;
+      }
+
       setReply("");
-      await loadMessages();
-    } else {
-      alert(error.message);
-    }
+      removeScreenshot();
 
-    setSending(false);
+      await loadMessages();
+    } catch (err) {
+      console.error(err);
+      setError("Reply send nahi ho saka.");
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -213,6 +326,7 @@ export default function AdminSupport() {
                     return (
                       <button
                         key={conversation.user_id}
+                        type="button"
                         onClick={() =>
                           selectUser(
                             conversation.user_id
@@ -285,16 +399,35 @@ export default function AdminSupport() {
                             }`}
                           >
                             <div
-                              className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                              className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                                 item.sender_role ===
                                 "support"
                                   ? "bg-cyan-500 text-slate-950"
                                   : "bg-white/10 text-white"
                               }`}
                             >
-                              <p className="text-sm">
+                              <p className="whitespace-pre-wrap text-sm">
                                 {item.message}
                               </p>
+
+                              {item.screenshot_url && (
+                                <a
+                                  href={
+                                    item.screenshot_url
+                                  }
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block"
+                                >
+                                  <img
+                                    src={
+                                      item.screenshot_url
+                                    }
+                                    alt="Support screenshot"
+                                    className="mt-3 max-h-64 rounded-xl object-contain"
+                                  />
+                                </a>
+                              )}
 
                               <p className="mt-1 text-[10px] opacity-60">
                                 {new Date(
@@ -309,6 +442,12 @@ export default function AdminSupport() {
 
                   </div>
 
+                  {error && (
+                    <div className="mb-3 rounded-xl bg-red-500/10 p-3 text-center text-sm font-semibold text-red-400">
+                      {error}
+                    </div>
+                  )}
+
                   <form onSubmit={sendReply}>
 
                     <textarea
@@ -321,15 +460,68 @@ export default function AdminSupport() {
                       className="w-full rounded-xl border border-white/10 bg-slate-900 p-4 text-white outline-none focus:border-cyan-400"
                     />
 
-                    <button
-                      type="submit"
-                      disabled={!reply.trim() || sending}
-                      className="mt-3 w-full rounded-xl bg-cyan-500 px-6 py-4 font-bold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {sending
-                        ? "Sending..."
-                        : "Send Reply"}
-                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleScreenshot}
+                      className="hidden"
+                    />
+
+                    {preview && (
+                      <div className="mt-3 rounded-xl border border-white/10 bg-slate-900 p-3">
+
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-sm font-bold text-cyan-400">
+                            🖼️ Screenshot Preview
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={removeScreenshot}
+                            className="rounded-lg bg-red-500/10 px-3 py-1 text-xs font-bold text-red-400"
+                          >
+                            Remove
+                          </button>
+                        </div>
+
+                        <img
+                          src={preview}
+                          alt="Screenshot preview"
+                          className="max-h-48 w-full rounded-xl object-contain"
+                        />
+
+                      </div>
+                    )}
+
+                    <div className="mt-3 flex gap-2">
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          fileInputRef.current?.click()
+                        }
+                        disabled={sending}
+                        className="flex-1 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-3 font-bold text-cyan-400 disabled:opacity-50"
+                      >
+                        📷 Screenshot
+                      </button>
+
+                      <button
+                        type="submit"
+                        disabled={
+                          (!reply.trim() &&
+                            !selectedFile) ||
+                          sending
+                        }
+                        className="flex-1 rounded-xl bg-cyan-500 px-4 py-3 font-bold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {sending
+                          ? "Sending..."
+                          : "Send Reply"}
+                      </button>
+
+                    </div>
 
                   </form>
                 </>
