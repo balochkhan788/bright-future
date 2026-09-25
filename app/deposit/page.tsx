@@ -509,9 +509,9 @@ export default function Deposit() {
             </label>
 
             <input
-              type="number"
-              min="1"
-              placeholder="e.g. 9000"
+  type="number"
+  min="1"
+  placeholder="Enter deposit amount"
               value={amount}
               onChange={(e) =>
                 setAmount(
