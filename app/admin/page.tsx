@@ -73,6 +73,23 @@ export default function AdminDashboard() {
   const [rewardAmounts, setRewardAmounts] =
     useState<Record<string, string>>({});
 
+  // MEMBERS & PLAN COUNTS
+  const [totalMembers, setTotalMembers] = useState(0);
+  const [activePlanMembers, setActivePlanMembers] = useState(0);
+  const [withoutPlanMembers, setWithoutPlanMembers] = useState(0);
+
+  const [planCounts, setPlanCounts] = useState<
+    Record<string, number>
+  >({
+    "G-1": 0,
+    "G-2": 0,
+    "G-3": 0,
+    "G-4": 0,
+    "G-5": 0,
+    "G-6": 0,
+    "G-7": 0,
+  });
+
   useEffect(() => {
     loadAdmin();
   }, []);
@@ -103,6 +120,92 @@ export default function AdminDashboard() {
         return;
       }
 
+      // ==========================================
+      // MEMBERS & PLAN STATISTICS
+      // ==========================================
+
+      const {
+        data: walletUsers,
+        error: walletUsersError,
+      } = await supabase
+        .from("wallet")
+        .select("user_id");
+
+      if (walletUsersError) {
+        console.error(walletUsersError);
+      }
+
+      const allUserIds = Array.from(
+        new Set(
+          (walletUsers || []).map(
+            (item: { user_id: string }) =>
+              item.user_id
+          )
+        )
+      );
+
+      setTotalMembers(allUserIds.length);
+
+      const {
+        data: activePlans,
+        error: activePlansError,
+      } = await supabase
+        .from("user_plans")
+        .select("user_id, plan_name")
+        .eq("status", "active");
+
+      if (activePlansError) {
+        console.error(activePlansError);
+      }
+
+      const activePlanRows = activePlans || [];
+
+      const activeUserIds = new Set(
+        activePlanRows.map(
+          (item: { user_id: string }) =>
+            item.user_id
+        )
+      );
+
+      setActivePlanMembers(activeUserIds.size);
+
+      const usersWithoutPlan = allUserIds.filter(
+        (userId) => !activeUserIds.has(userId)
+      );
+
+      setWithoutPlanMembers(
+        usersWithoutPlan.length
+      );
+
+      const counts: Record<string, number> = {
+        "G-1": 0,
+        "G-2": 0,
+        "G-3": 0,
+        "G-4": 0,
+        "G-5": 0,
+        "G-6": 0,
+        "G-7": 0,
+      };
+
+      activePlanRows.forEach(
+        (item: {
+          user_id: string;
+          plan_name: string;
+        }) => {
+          if (
+            counts[item.plan_name] !== undefined
+          ) {
+            counts[item.plan_name] += 1;
+          }
+        }
+      );
+
+      setPlanCounts(counts);
+
+      // ==========================================
+      // DEPOSITS
+      // ==========================================
+
       const {
         data: depositData,
         error: depositError,
@@ -118,6 +221,10 @@ export default function AdminDashboard() {
       if (depositError) {
         console.error(depositError);
       }
+
+      // ==========================================
+      // WITHDRAWALS
+      // ==========================================
 
       const {
         data: withdrawalData,
@@ -173,6 +280,10 @@ export default function AdminDashboard() {
             : item.withdrawal_method || null,
       }));
 
+      // ==========================================
+      // REFERRAL REWARDS
+      // ==========================================
+
       const {
         data: rewardData,
         error: rewardError,
@@ -188,6 +299,10 @@ export default function AdminDashboard() {
       if (rewardError) {
         console.error(rewardError);
       }
+
+      // ==========================================
+      // ADMIN NOTIFICATIONS
+      // ==========================================
 
       const {
         data: notificationData,
@@ -625,6 +740,75 @@ export default function AdminDashboard() {
           <div className="mb-6 rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-4 text-center text-cyan-300">
             {message}
           </div>
+        )}
+
+        {/* MEMBERS & PLANS OVERVIEW */}
+
+        {!loading && (
+          <section className="mb-10">
+
+            <h2 className="mb-4 text-2xl font-bold">
+              👥 Members & Plans
+            </h2>
+
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+
+              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
+                <p className="text-sm text-slate-400">
+                  Total Members
+                </p>
+
+                <p className="mt-1 text-3xl font-bold text-cyan-400">
+                  {totalMembers}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-green-400/20 bg-green-400/10 p-4">
+                <p className="text-sm text-slate-400">
+                  Active Plans
+                </p>
+
+                <p className="mt-1 text-3xl font-bold text-green-400">
+                  {activePlanMembers}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4">
+                <p className="text-sm text-slate-400">
+                  Without Plan
+                </p>
+
+                <p className="mt-1 text-3xl font-bold text-yellow-400">
+                  {withoutPlanMembers}
+                </p>
+              </div>
+
+            </div>
+
+            <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+
+              {Object.entries(planCounts).map(
+                ([plan, count]) => (
+                  <div
+                    key={plan}
+                    className="flex items-center justify-between border-b border-white/10 p-4 last:border-b-0"
+                  >
+
+                    <span className="font-bold">
+                      📋 {plan}
+                    </span>
+
+                    <span className="rounded-lg bg-cyan-400/10 px-4 py-2 font-bold text-cyan-400">
+                      {count} Members
+                    </span>
+
+                  </div>
+                )
+              )}
+
+            </div>
+
+          </section>
         )}
 
         {/* ADMIN NOTIFICATIONS */}
