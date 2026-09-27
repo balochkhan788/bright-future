@@ -166,7 +166,6 @@ export default function AdminDashboard() {
   setMessage("");
 
   try {
-    // Get current logged-in user
     const {
       data: { user },
       error: userError,
