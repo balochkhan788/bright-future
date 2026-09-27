@@ -269,9 +269,11 @@ export default function AdminDashboard() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        window.location.href = "/login";
-        return;
-      }
+  window.location.href = "/login";
+  return;
+}
+
+console.log("CURRENT WEBSITE USER ID:", user.id);
 
       const { data: admin, error: adminError } =
         await supabase
