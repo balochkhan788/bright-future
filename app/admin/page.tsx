@@ -83,7 +83,6 @@ export default function AdminDashboard() {
   const [rewardAmounts, setRewardAmounts] =
     useState<Record<string, string>>({});
 
-  // MEMBERS & PLAN COUNTS
   const [totalMembers, setTotalMembers] = useState(0);
   const [activePlanMembers, setActivePlanMembers] = useState(0);
   const [withoutPlanMembers, setWithoutPlanMembers] = useState(0);
@@ -132,7 +131,10 @@ export default function AdminDashboard() {
       .maybeSingle();
 
     if (error) {
-      console.error(error);
+      console.error(
+        "Announcement load error:",
+        error
+      );
       return;
     }
 
@@ -151,6 +153,7 @@ export default function AdminDashboard() {
 
   async function saveAnnouncement() {
     const title = announcementTitle.trim();
+
     const announcementText =
       announcementMessage.trim();
 
@@ -162,6 +165,7 @@ export default function AdminDashboard() {
     }
 
     setSavingAnnouncement(true);
+    setMessage("");
 
     try {
       if (announcement) {
@@ -183,25 +187,32 @@ export default function AdminDashboard() {
           "Announcement updated successfully."
         );
       } else {
-        // Deactivate any old active announcement first
-        await supabase
-          .from("app_announcements")
-          .update({
-            is_active: false,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("is_active", true);
+        // Deactivate old active announcements
+        const { error: deactivateError } =
+          await supabase
+            .from("app_announcements")
+            .update({
+              is_active: false,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("is_active", true);
 
-        const { error } = await supabase
-          .from("app_announcements")
-          .insert({
-            title,
-            message: announcementText,
-            is_active: true,
-          });
+        if (deactivateError) {
+          throw deactivateError;
+        }
 
-        if (error) {
-          throw error;
+        // Insert new announcement
+        const { error: insertError } =
+          await supabase
+            .from("app_announcements")
+            .insert({
+              title,
+              message: announcementText,
+              is_active: true,
+            });
+
+        if (insertError) {
+          throw insertError;
         }
 
         setMessage(
@@ -210,11 +221,19 @@ export default function AdminDashboard() {
       }
 
       await loadAnnouncement();
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      console.error(
+        "ANNOUNCEMENT SAVE ERROR:",
+        error
+      );
 
       setMessage(
-        "Unable to save announcement."
+        `Save Error: ${
+          error?.message ||
+          error?.details ||
+          error?.hint ||
+          "Unknown error"
+        }`
       );
     } finally {
       setSavingAnnouncement(false);
@@ -244,7 +263,6 @@ export default function AdminDashboard() {
 
     if (error) {
       console.error(error);
-
       setMessage(error.message);
       return;
     }
@@ -284,9 +302,7 @@ export default function AdminDashboard() {
         return;
       }
 
-      // ==========================================
       // MEMBERS & PLAN STATISTICS
-      // ==========================================
 
       const {
         data: walletUsers,
@@ -366,9 +382,7 @@ export default function AdminDashboard() {
 
       setPlanCounts(counts);
 
-      // ==========================================
       // DEPOSITS
-      // ==========================================
 
       const {
         data: depositData,
@@ -386,9 +400,7 @@ export default function AdminDashboard() {
         console.error(depositError);
       }
 
-      // ==========================================
       // WITHDRAWALS
-      // ==========================================
 
       const {
         data: withdrawalData,
@@ -444,9 +456,7 @@ export default function AdminDashboard() {
             : item.withdrawal_method || null,
       }));
 
-      // ==========================================
       // REFERRAL REWARDS
-      // ==========================================
 
       const {
         data: rewardData,
@@ -464,9 +474,7 @@ export default function AdminDashboard() {
         console.error(rewardError);
       }
 
-      // ==========================================
       // ADMIN NOTIFICATIONS
-      // ==========================================
 
       const {
         data: notificationData,
@@ -866,7 +874,6 @@ export default function AdminDashboard() {
 
   return (
     <main className="min-h-screen bg-slate-950 p-5 text-white">
-
       <div className="mx-auto max-w-6xl">
 
         <div className="mb-8">
@@ -974,15 +981,15 @@ export default function AdminDashboard() {
 
         </div>
 
-        {loading && (
-          <div className="rounded-xl bg-white/5 p-5 text-center">
-            Loading admin data...
-          </div>
-        )}
-
         {!loading && message && (
           <div className="mb-6 rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-4 text-center text-cyan-300">
             {message}
+          </div>
+        )}
+
+        {loading && (
+          <div className="mb-6 rounded-xl bg-white/5 p-5 text-center">
+            Loading admin data...
           </div>
         )}
 
@@ -1037,7 +1044,6 @@ export default function AdminDashboard() {
                     key={plan}
                     className="flex items-center justify-between border-b border-white/10 p-4 last:border-b-0"
                   >
-
                     <span className="font-bold">
                       📋 {plan}
                     </span>
@@ -1045,7 +1051,6 @@ export default function AdminDashboard() {
                     <span className="rounded-lg bg-cyan-400/10 px-4 py-2 font-bold text-cyan-400">
                       {count} Members
                     </span>
-
                   </div>
                 )
               )}
@@ -1594,7 +1599,6 @@ export default function AdminDashboard() {
         </button>
 
       </div>
-
     </main>
   );
 }
