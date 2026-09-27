@@ -694,7 +694,12 @@ export default function Dashboard() {
 
   <div className="bg-white rounded-2xl shadow border border-slate-200 overflow-hidden">
     <div className="divide-y divide-slate-200">
-
+<Link
+  href="/meeting"
+  className="rounded-xl bg-cyan-500 p-4 text-center font-bold text-slate-950 shadow transition hover:scale-105"
+>
+  📢 Meeting Group
+</Link>
       <Link
         href="/plans"
         className="flex items-center justify-between p-4 hover:bg-slate-50"

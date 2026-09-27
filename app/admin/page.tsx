@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 type Deposit = {
@@ -727,7 +728,12 @@ export default function AdminDashboard() {
           >
             💬 Support Messages
           </button>
-
+<Link
+  href="/admin/meeting"
+  className="rounded-xl bg-cyan-500 p-4 text-center font-bold text-slate-950 shadow transition hover:scale-105"
+>
+  📢 Meeting Group
+</Link>
         </div>
 
         {loading && (
@@ -1346,6 +1352,7 @@ export default function AdminDashboard() {
           onClick={loadAdmin}
           className="mb-10 w-full rounded-xl border border-cyan-400 p-3 font-bold text-cyan-400"
         >
+          
           🔄 Refresh
         </button>
 
