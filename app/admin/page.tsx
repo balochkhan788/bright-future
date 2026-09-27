@@ -152,93 +152,62 @@ export default function AdminDashboard() {
   }
 
   async function saveAnnouncement() {
-    const title = announcementTitle.trim();
+  const title = announcementTitle.trim();
+  const announcementText = announcementMessage.trim();
 
-    const announcementText =
-      announcementMessage.trim();
-
-    if (!title || !announcementText) {
-      setMessage(
-        "Announcement title and message are required."
-      );
-      return;
-    }
-
-    setSavingAnnouncement(true);
-    setMessage("");
-
-    try {
-      if (announcement) {
-        const { error } = await supabase
-          .from("app_announcements")
-          .update({
-            title,
-            message: announcementText,
-            is_active: true,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", announcement.id);
-
-        if (error) {
-          throw error;
-        }
-
-        setMessage(
-          "Announcement updated successfully."
-        );
-      } else {
-        // Deactivate old active announcements
-        const { error: deactivateError } =
-          await supabase
-            .from("app_announcements")
-            .update({
-              is_active: false,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("is_active", true);
-
-        if (deactivateError) {
-          throw deactivateError;
-        }
-
-        // Insert new announcement
-        const { error: insertError } =
-          await supabase
-            .from("app_announcements")
-            .insert({
-              title,
-              message: announcementText,
-              is_active: true,
-            });
-
-        if (insertError) {
-          throw insertError;
-        }
-
-        setMessage(
-          "Announcement published successfully."
-        );
-      }
-
-      await loadAnnouncement();
-    } catch (error: any) {
-      console.error(
-        "ANNOUNCEMENT SAVE ERROR:",
-        error
-      );
-
-      setMessage(
-        `Save Error: ${
-          error?.message ||
-          error?.details ||
-          error?.hint ||
-          "Unknown error"
-        }`
-      );
-    } finally {
-      setSavingAnnouncement(false);
-    }
+  if (!title || !announcementText) {
+    setMessage(
+      "Announcement title and message are required."
+    );
+    return;
   }
+
+  setSavingAnnouncement(true);
+  setMessage("");
+
+  try {
+    const { data, error } = await supabase.rpc(
+      "publish_announcement",
+      {
+        p_title: title,
+        p_message: announcementText,
+      }
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    console.log(
+      "Announcement published:",
+      data
+    );
+
+    setMessage(
+      announcement
+        ? "Announcement updated successfully."
+        : "Announcement published successfully."
+    );
+
+    await loadAnnouncement();
+  } catch (error: any) {
+    console.error(
+      "ANNOUNCEMENT SAVE ERROR:",
+      error
+    );
+
+    setMessage(
+      `Save Error: ${
+        error?.message ||
+        error?.details ||
+        error?.hint ||
+        "Unknown error"
+      }`
+    );
+  } finally {
+    setSavingAnnouncement(false);
+  }
+}
 
   async function deleteAnnouncement() {
     if (!announcement) {
