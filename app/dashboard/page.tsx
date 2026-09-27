@@ -10,6 +10,15 @@ type Slide = {
   description: string;
 };
 
+type Announcement = {
+  id: string;
+  title: string;
+  message: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 const slideImages = [
   "/slide/1.jpg",
   "/slide/2.jpg",
@@ -51,6 +60,10 @@ export default function Dashboard() {
 
   const [installPrompt, setInstallPrompt] =
     useState<any>(null);
+
+  // DASHBOARD ANNOUNCEMENT
+  const [announcement, setAnnouncement] =
+    useState<Announcement | null>(null);
 
   const slides: Slide[] = [
     {
@@ -145,7 +158,41 @@ export default function Dashboard() {
 
       setUserName(name);
 
+      // ==========================================
+      // DASHBOARD ANNOUNCEMENT
+      // ==========================================
+
+      const {
+        data: announcementData,
+        error: announcementError,
+      } = await supabase
+        .from("app_announcements")
+        .select(
+          "id, title, message, is_active, created_at, updated_at"
+        )
+        .eq("is_active", true)
+        .order("created_at", {
+          ascending: false,
+        })
+        .limit(1)
+        .maybeSingle();
+
+      if (announcementError) {
+        console.error(
+          "Announcement error:",
+          announcementError
+        );
+      } else {
+        setAnnouncement(
+          (announcementData as Announcement | null) ||
+            null
+        );
+      }
+
+      // ==========================================
       // WALLET
+      // ==========================================
+
       const { data: wallet } =
         await supabase
           .from("wallets")
@@ -169,7 +216,10 @@ export default function Dashboard() {
         );
       }
 
+      // ==========================================
       // ACTIVE PLAN
+      // ==========================================
+
       const { data: plan } =
         await supabase
           .from("user_plans")
@@ -235,7 +285,10 @@ export default function Dashboard() {
         setDailyTaskCompleted(0);
       }
 
+      // ==========================================
       // WITHDRAWALS
+      // ==========================================
+
       const { data: withdrawals } =
         await supabase
           .from("withdrawals")
@@ -257,7 +310,10 @@ export default function Dashboard() {
         withdrawalTotal
       );
 
+      // ==========================================
       // EARNINGS
+      // ==========================================
+
       const { data: earnings } =
         await supabase
           .from("earnings")
@@ -305,7 +361,10 @@ export default function Dashboard() {
         todayTotal
       );
 
+      // ==========================================
       // REFERRAL BONUS
+      // ==========================================
+
       const { data: rewards } =
         await supabase
           .from("referral_rewards")
@@ -399,41 +458,41 @@ export default function Dashboard() {
 
           <div className="relative w-full h-56 sm:h-72 md:h-80">
 
-  <img
-    src={slideImages[slide]}
-    alt={
-      "Bright Future Slide " +
-      (slide + 1)
-    }
-    className="w-full h-full object-cover"
-  />
+            <img
+              src={slideImages[slide]}
+              alt={
+                "Bright Future Slide " +
+                (slide + 1)
+              }
+              className="w-full h-full object-cover"
+            />
 
-  <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
 
-    {slideImages.map(
-      (_, index) => (
-        <button
-          key={index}
-          type="button"
-          onClick={() =>
-            setSlide(index)
-          }
-          aria-label={
-            "Slide " +
-            (index + 1)
-          }
-          className={
-            slide === index
-              ? "h-3 w-8 rounded-full bg-white shadow"
-              : "h-3 w-3 rounded-full bg-white/60"
-          }
-        />
-      )
-    )}
+              {slideImages.map(
+                (_, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() =>
+                      setSlide(index)
+                    }
+                    aria-label={
+                      "Slide " +
+                      (index + 1)
+                    }
+                    className={
+                      slide === index
+                        ? "h-3 w-8 rounded-full bg-white shadow"
+                        : "h-3 w-3 rounded-full bg-white/60"
+                    }
+                  />
+                )
+              )}
 
-  </div>
+            </div>
 
-</div>
+          </div>
 
         </section>
 
@@ -454,6 +513,38 @@ export default function Dashboard() {
           </p>
 
         </section>
+
+        {/* DASHBOARD ANNOUNCEMENT */}
+        {announcement && (
+          <section className="overflow-hidden rounded-2xl border-2 border-yellow-400 bg-gradient-to-r from-yellow-50 via-white to-yellow-50 shadow-lg">
+
+            <div className="bg-yellow-400 px-4 py-3 text-center">
+              <p className="text-sm font-extrabold uppercase tracking-wide text-slate-900">
+                📢 Important Announcement
+              </p>
+            </div>
+
+            <div className="p-5 text-center">
+
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+                {announcement.title}
+              </h2>
+
+              <p className="mt-3 text-lg sm:text-xl font-semibold leading-relaxed text-slate-700">
+                {announcement.message}
+              </p>
+
+              <p className="mt-3 text-xs text-slate-400">
+                Last updated:{" "}
+                {new Date(
+                  announcement.updated_at
+                ).toLocaleString()}
+              </p>
+
+            </div>
+
+          </section>
+        )}
 
         {/* ACCOUNT SUMMARY */}
         <section>
@@ -607,15 +698,18 @@ export default function Dashboard() {
                 </div>
 
               </div>
-<button
-  type="button"
-  onClick={() => {
-    window.location.href = "/task";
-  }}
-  className="mt-5 block w-full rounded-xl bg-indigo-600 text-white p-4 text-center font-bold shadow-md hover:scale-[1.01] transition"
->
-  🎯 Open Daily Tasks
-</button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href =
+                    "/task";
+                }}
+                className="mt-5 block w-full rounded-xl bg-indigo-600 text-white p-4 text-center font-bold shadow-md hover:scale-[1.01] transition"
+              >
+                🎯 Open Daily Tasks
+              </button>
+
             </>
           ) : (
             <div className="mt-5 rounded-xl bg-yellow-50 border border-yellow-200 p-4">
@@ -687,198 +781,219 @@ export default function Dashboard() {
         </section>
 
         {/* QUICK ACTIONS */}
-<section>
-  <h2 className="text-lg font-bold text-slate-800 mb-3">
-    Quick Actions
-  </h2>
+        <section>
 
-  <div className="bg-white rounded-2xl shadow border border-slate-200 overflow-hidden">
-    <div className="divide-y divide-slate-200">
-<Link
-  href="/meeting"
-  className="rounded-xl bg-cyan-500 p-4 text-center font-bold text-slate-950 shadow transition hover:scale-105"
->
-  📢 Meeting Group
-</Link>
-      <Link
-        href="/plans"
-        className="flex items-center justify-between p-4 hover:bg-slate-50"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">📋</span>
-          <span className="font-semibold text-slate-800">
-            Plans
-          </span>
-        </div>
-        <span className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white">
-          Open
-        </span>
-      </Link>
+          <h2 className="text-lg font-bold text-slate-800 mb-3">
+            Quick Actions
+          </h2>
 
-      <Link
-        href="/deposit"
-        className="flex items-center justify-between p-4 hover:bg-slate-50"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">💰</span>
-          <span className="font-semibold text-slate-800">
-            Deposit
-          </span>
-        </div>
-        <span className="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white">
-          Open
-        </span>
-      </Link>
+          <div className="bg-white rounded-2xl shadow border border-slate-200 overflow-hidden">
 
-      <Link
-        href="/withdraw"
-        className="flex items-center justify-between p-4 hover:bg-slate-50"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">💸</span>
-          <span className="font-semibold text-slate-800">
-            Withdraw
-          </span>
-        </div>
-        <span className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-bold text-white">
-          Open
-        </span>
-      </Link>
+            <div className="divide-y divide-slate-200">
 
-      <Link
-        href="/transactions"
-        className="flex items-center justify-between p-4 hover:bg-slate-50"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">📊</span>
-          <span className="font-semibold text-slate-800">
-            Transactions
-          </span>
-        </div>
-        <span className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-bold text-white">
-          Open
-        </span>
-      </Link>
+              <Link
+                href="/meeting"
+                className="block rounded-xl bg-cyan-500 p-4 text-center font-bold text-slate-950 shadow transition hover:scale-105"
+              >
+                📢 Meeting Group
+              </Link>
 
-      <Link
-        href="/task"
-        className="flex items-center justify-between p-4 hover:bg-slate-50"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">🎯</span>
-          <span className="font-semibold text-slate-800">
-            Daily Task
-          </span>
-        </div>
-        <span className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white">
-          Open
-        </span>
-      </Link>
+              <Link
+                href="/plans"
+                className="flex items-center justify-between p-4 hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📋</span>
+                  <span className="font-semibold text-slate-800">
+                    Plans
+                  </span>
+                </div>
 
-      <Link
-        href="/referral"
-        className="flex items-center justify-between p-4 hover:bg-slate-50"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">👥</span>
-          <span className="font-semibold text-slate-800">
-            Referral
-          </span>
-        </div>
-        <span className="rounded-lg bg-pink-600 px-4 py-2 text-sm font-bold text-white">
-          Open
-        </span>
-      </Link>
+                <span className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white">
+                  Open
+                </span>
+              </Link>
 
-      <Link
-        href="/referral-rewards"
-        className="flex items-center justify-between p-4 hover:bg-slate-50"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">🎁</span>
-          <span className="font-semibold text-slate-800">
-            Referral Rewards
-          </span>
-        </div>
-        <span className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white">
-          Open
-        </span>
-      </Link>
+              <Link
+                href="/deposit"
+                className="flex items-center justify-between p-4 hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">💰</span>
+                  <span className="font-semibold text-slate-800">
+                    Deposit
+                  </span>
+                </div>
 
-      <Link
-        href="/spin-wheel"
-        className="flex items-center justify-between p-4 hover:bg-slate-50"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">🎡</span>
-          <span className="font-semibold text-slate-800">
-            Spin Wheel
-          </span>
-        </div>
-        <span className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-bold text-white">
-          Open
-        </span>
-      </Link>
+                <span className="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white">
+                  Open
+                </span>
+              </Link>
 
-      <Link
-        href="/profile"
-        className="flex items-center justify-between p-4 hover:bg-slate-50"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">👤</span>
-          <span className="font-semibold text-slate-800">
-            Profile
-          </span>
-        </div>
-        <span className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-bold text-white">
-          Open
-        </span>
-      </Link>
+              <Link
+                href="/withdraw"
+                className="flex items-center justify-between p-4 hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">💸</span>
+                  <span className="font-semibold text-slate-800">
+                    Withdraw
+                  </span>
+                </div>
 
-      <Link
-        href="/rules"
-        className="flex items-center justify-between p-4 hover:bg-slate-50"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">📋</span>
-          <span className="font-semibold text-slate-800">
-            Rules
-          </span>
-        </div>
-        <span className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-bold text-white">
-          Open
-        </span>
-      </Link>
+                <span className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-bold text-white">
+                  Open
+                </span>
+              </Link>
 
-      <Link
-        href="/support-partner"
-        className="flex items-center justify-between p-4 hover:bg-slate-50"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">🤝</span>
-          <span className="font-semibold text-slate-800">
-            Support Partner
-          </span>
-        </div>
-        <span className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-bold text-white">
-          Open
-        </span>
-      </Link>
+              <Link
+                href="/transactions"
+                className="flex items-center justify-between p-4 hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📊</span>
+                  <span className="font-semibold text-slate-800">
+                    Transactions
+                  </span>
+                </div>
 
-    </div>
+                <span className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-bold text-white">
+                  Open
+                </span>
+              </Link>
 
-    <div className="border-t border-slate-200 p-4">
-      <button
-        type="button"
-        onClick={installApp}
-        className="w-full rounded-xl bg-cyan-500 p-3 font-bold text-slate-950 shadow"
-      >
-        📲 Install Bright Future App
-      </button>
-    </div>
-  </div>
-</section>
-    </div>
-  </main>
+              <Link
+                href="/task"
+                className="flex items-center justify-between p-4 hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🎯</span>
+                  <span className="font-semibold text-slate-800">
+                    Daily Task
+                  </span>
+                </div>
+
+                <span className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white">
+                  Open
+                </span>
+              </Link>
+
+              <Link
+                href="/referral"
+                className="flex items-center justify-between p-4 hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">👥</span>
+                  <span className="font-semibold text-slate-800">
+                    Referral
+                  </span>
+                </div>
+
+                <span className="rounded-lg bg-pink-600 px-4 py-2 text-sm font-bold text-white">
+                  Open
+                </span>
+              </Link>
+
+              <Link
+                href="/referral-rewards"
+                className="flex items-center justify-between p-4 hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🎁</span>
+                  <span className="font-semibold text-slate-800">
+                    Referral Rewards
+                  </span>
+                </div>
+
+                <span className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white">
+                  Open
+                </span>
+              </Link>
+
+              <Link
+                href="/spin-wheel"
+                className="flex items-center justify-between p-4 hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🎡</span>
+                  <span className="font-semibold text-slate-800">
+                    Spin Wheel
+                  </span>
+                </div>
+
+                <span className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-bold text-white">
+                  Open
+                </span>
+              </Link>
+
+              <Link
+                href="/profile"
+                className="flex items-center justify-between p-4 hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">👤</span>
+                  <span className="font-semibold text-slate-800">
+                    Profile
+                  </span>
+                </div>
+
+                <span className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-bold text-white">
+                  Open
+                </span>
+              </Link>
+
+              <Link
+                href="/rules"
+                className="flex items-center justify-between p-4 hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📋</span>
+                  <span className="font-semibold text-slate-800">
+                    Rules
+                  </span>
+                </div>
+
+                <span className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-bold text-white">
+                  Open
+                </span>
+              </Link>
+
+              <Link
+                href="/support-partner"
+                className="flex items-center justify-between p-4 hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🤝</span>
+                  <span className="font-semibold text-slate-800">
+                    Support Partner
+                  </span>
+                </div>
+
+                <span className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-bold text-white">
+                  Open
+                </span>
+              </Link>
+
+            </div>
+
+            <div className="border-t border-slate-200 p-4">
+
+              <button
+                type="button"
+                onClick={installApp}
+                className="w-full rounded-xl bg-cyan-500 p-3 font-bold text-slate-950 shadow"
+              >
+                📲 Install Bright Future App
+              </button>
+
+            </div>
+
+          </div>
+
+        </section>
+
+      </div>
+
+    </main>
   );
 }

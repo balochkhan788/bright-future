@@ -50,6 +50,15 @@ type AdminNotification = {
   created_at: string;
 };
 
+type Announcement = {
+  id: string;
+  title: string;
+  message: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export default function AdminDashboard() {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
@@ -91,9 +100,163 @@ export default function AdminDashboard() {
     "G-7": 0,
   });
 
+  // ANNOUNCEMENT
+  const [announcement, setAnnouncement] =
+    useState<Announcement | null>(null);
+
+  const [announcementTitle, setAnnouncementTitle] =
+    useState("");
+
+  const [announcementMessage, setAnnouncementMessage] =
+    useState("");
+
+  const [savingAnnouncement, setSavingAnnouncement] =
+    useState(false);
+
   useEffect(() => {
     loadAdmin();
+    loadAnnouncement();
   }, []);
+
+  async function loadAnnouncement() {
+    const { data, error } = await supabase
+      .from("app_announcements")
+      .select(
+        "id, title, message, is_active, created_at, updated_at"
+      )
+      .eq("is_active", true)
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setAnnouncement(
+      (data as Announcement | null) || null
+    );
+
+    setAnnouncementTitle(
+      data?.title || ""
+    );
+
+    setAnnouncementMessage(
+      data?.message || ""
+    );
+  }
+
+  async function saveAnnouncement() {
+    const title = announcementTitle.trim();
+    const announcementText =
+      announcementMessage.trim();
+
+    if (!title || !announcementText) {
+      setMessage(
+        "Announcement title and message are required."
+      );
+      return;
+    }
+
+    setSavingAnnouncement(true);
+
+    try {
+      if (announcement) {
+        const { error } = await supabase
+          .from("app_announcements")
+          .update({
+            title,
+            message: announcementText,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", announcement.id);
+
+        if (error) {
+          throw error;
+        }
+
+        setMessage(
+          "Announcement updated successfully."
+        );
+      } else {
+        // Deactivate any old active announcement first
+        await supabase
+          .from("app_announcements")
+          .update({
+            is_active: false,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("is_active", true);
+
+        const { error } = await supabase
+          .from("app_announcements")
+          .insert({
+            title,
+            message: announcementText,
+            is_active: true,
+          });
+
+        if (error) {
+          throw error;
+        }
+
+        setMessage(
+          "Announcement published successfully."
+        );
+      }
+
+      await loadAnnouncement();
+    } catch (error) {
+      console.error(error);
+
+      setMessage(
+        "Unable to save announcement."
+      );
+    } finally {
+      setSavingAnnouncement(false);
+    }
+  }
+
+  async function deleteAnnouncement() {
+    if (!announcement) {
+      return;
+    }
+
+    if (
+      !window.confirm(
+        "Remove this announcement from the Dashboard?"
+      )
+    ) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("app_announcements")
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", announcement.id);
+
+    if (error) {
+      console.error(error);
+
+      setMessage(error.message);
+      return;
+    }
+
+    setAnnouncement(null);
+    setAnnouncementTitle("");
+    setAnnouncementMessage("");
+
+    setMessage(
+      "Announcement removed from Dashboard."
+    );
+  }
 
   async function loadAdmin() {
     setLoading(true);
@@ -728,12 +891,87 @@ export default function AdminDashboard() {
           >
             💬 Support Messages
           </button>
-<Link
-  href="/admin/meeting"
-  className="rounded-xl bg-cyan-500 p-4 text-center font-bold text-slate-950 shadow transition hover:scale-105"
->
-  📢 Meeting Group
-</Link>
+
+          <Link
+            href="/admin/meeting"
+            className="mt-3 block rounded-xl bg-cyan-500 p-4 text-center font-bold text-slate-950 shadow transition hover:scale-105"
+          >
+            📢 Meeting Group
+          </Link>
+
+          {/* ANNOUNCEMENT CONTROL */}
+
+          <div className="mt-4 rounded-2xl border border-yellow-400/40 bg-yellow-400/10 p-4">
+
+            <h3 className="text-lg font-bold text-yellow-300">
+              📢 Dashboard Announcement
+            </h3>
+
+            <p className="mt-1 text-xs text-slate-400">
+              یہ اعلان تمام users کے Dashboard پر دکھے گا۔
+            </p>
+
+            <input
+              type="text"
+              value={announcementTitle}
+              onChange={(e) =>
+                setAnnouncementTitle(
+                  e.target.value
+                )
+              }
+              placeholder="Announcement title"
+              className="mt-3 w-full rounded-xl border border-white/10 bg-slate-900 p-3 text-white outline-none focus:border-yellow-400"
+            />
+
+            <textarea
+              value={announcementMessage}
+              onChange={(e) =>
+                setAnnouncementMessage(
+                  e.target.value
+                )
+              }
+              placeholder="مثال: کل 10 بجے Meeting ہوگی"
+              rows={3}
+              className="mt-3 w-full resize-none rounded-xl border border-white/10 bg-slate-900 p-3 text-white outline-none focus:border-yellow-400"
+            />
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+
+              <button
+                type="button"
+                onClick={saveAnnouncement}
+                disabled={
+                  savingAnnouncement
+                }
+                className="rounded-xl bg-green-500 p-3 font-bold text-black disabled:opacity-50"
+              >
+                {savingAnnouncement
+                  ? "Saving..."
+                  : announcement
+                  ? "✏️ Update"
+                  : "📢 Publish"}
+              </button>
+
+              <button
+                type="button"
+                onClick={deleteAnnouncement}
+                disabled={!announcement}
+                className="rounded-xl bg-red-500 p-3 font-bold text-white disabled:opacity-40"
+              >
+                🗑️ Remove
+              </button>
+
+            </div>
+
+            {announcement && (
+              <div className="mt-3 rounded-xl bg-green-500/10 p-3 text-center text-xs text-green-400">
+                Active announcement is currently
+                showing on Dashboard.
+              </div>
+            )}
+
+          </div>
+
         </div>
 
         {loading && (
@@ -1352,7 +1590,6 @@ export default function AdminDashboard() {
           onClick={loadAdmin}
           className="mb-10 w-full rounded-xl border border-cyan-400 p-3 font-bold text-cyan-400"
         >
-          
           🔄 Refresh
         </button>
 
