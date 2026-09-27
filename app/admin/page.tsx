@@ -152,79 +152,84 @@ export default function AdminDashboard() {
   }
 
   async function saveAnnouncement() {
-  const title = announcementTitle.trim();
-  const announcementText = announcementMessage.trim();
+    const title = announcementTitle.trim();
+    const announcementText =
+      announcementMessage.trim();
 
-  if (!title || !announcementText) {
-    setMessage(
-      "Announcement title and message are required."
-    );
-    return;
-  }
-
-  setSavingAnnouncement(true);
-  setMessage("");
-
-  try {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError) {
-      throw userError;
+    if (!title || !announcementText) {
+      setMessage(
+        "Announcement title and message are required."
+      );
+      return;
     }
 
-    if (!user) {
-      throw new Error("Please login again.");
-    }
+    setSavingAnnouncement(true);
+    setMessage("");
 
-    const { data, error } = await supabase.rpc(
-      "publish_announcement",
-      {
-        p_user_id: user.id,
-        p_title: title,
-        p_message: announcementText,
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        throw userError;
       }
-    );
 
-    if (error) {
-      throw error;
+      if (!user) {
+        throw new Error("Please login again.");
+      }
+
+      const { data, error } = await supabase.rpc(
+        "publish_announcement",
+        {
+          p_user_id: user.id,
+          p_title: title,
+          p_message: announcementText,
+        }
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      console.log(
+        "Announcement published:",
+        data
+      );
+
+      setMessage(
+        announcement
+          ? "Announcement updated successfully."
+          : "Announcement published successfully."
+      );
+
+      await loadAnnouncement();
+    } catch (error: any) {
+      console.error(
+        "ANNOUNCEMENT SAVE ERROR:",
+        error
+      );
+
+      setMessage(
+        `Save Error: ${
+          error?.message ||
+          error?.details ||
+          error?.hint ||
+          "Unknown error"
+        }`
+      );
+    } finally {
+      setSavingAnnouncement(false);
     }
-
-    console.log(
-      "Announcement published:",
-      data
-    );
-
-    setMessage(
-      announcement
-        ? "Announcement updated successfully."
-        : "Announcement published successfully."
-    );
-
-    await loadAnnouncement();
-  } catch (error: any) {
-    console.error(
-      "ANNOUNCEMENT SAVE ERROR:",
-      error
-    );
-
-    setMessage(
-      `Save Error: ${
-        error?.message ||
-        error?.details ||
-        error?.hint ||
-        "Unknown error"
-      }`
-    );
-  } finally {
-    setSavingAnnouncement(false);
   }
-}
 
+  // ANNOUNCEMENT REMOVE - RPC VERSION
   async function deleteAnnouncement() {
     if (!announcement) {
+      setMessage(
+        "No active announcement found."
+      );
       return;
     }
 
@@ -236,27 +241,58 @@ export default function AdminDashboard() {
       return;
     }
 
-    const { error } = await supabase
-      .from("app_announcements")
-      .update({
-        is_active: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", announcement.id);
+    setMessage("");
 
-    if (error) {
-      console.error(error);
-      setMessage(error.message);
-      return;
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        throw userError;
+      }
+
+      if (!user) {
+        throw new Error("Please login again.");
+      }
+
+      const { error } = await supabase.rpc(
+        "remove_announcement",
+        {
+          p_user_id: user.id,
+          p_announcement_id: announcement.id,
+        }
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      setAnnouncement(null);
+      setAnnouncementTitle("");
+      setAnnouncementMessage("");
+
+      setMessage(
+        "Announcement removed from Dashboard."
+      );
+
+      await loadAnnouncement();
+    } catch (error: any) {
+      console.error(
+        "ANNOUNCEMENT DELETE ERROR:",
+        error
+      );
+
+      setMessage(
+        `Remove Error: ${
+          error?.message ||
+          error?.details ||
+          error?.hint ||
+          "Unable to remove announcement."
+        }`
+      );
     }
-
-    setAnnouncement(null);
-    setAnnouncementTitle("");
-    setAnnouncementMessage("");
-
-    setMessage(
-      "Announcement removed from Dashboard."
-    );
   }
 
   async function loadAdmin() {
@@ -269,11 +305,14 @@ export default function AdminDashboard() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-  window.location.href = "/login";
-  return;
-}
+        window.location.href = "/login";
+        return;
+      }
 
-console.log("CURRENT WEBSITE USER ID:", user.id);
+      console.log(
+        "CURRENT WEBSITE USER ID:",
+        user.id
+      );
 
       const { data: admin, error: adminError } =
         await supabase
@@ -288,7 +327,6 @@ console.log("CURRENT WEBSITE USER ID:", user.id);
       }
 
       // MEMBERS & PLAN STATISTICS
-
       const {
         data: walletUsers,
         error: walletUsersError,
@@ -368,7 +406,6 @@ console.log("CURRENT WEBSITE USER ID:", user.id);
       setPlanCounts(counts);
 
       // DEPOSITS
-
       const {
         data: depositData,
         error: depositError,
@@ -386,7 +423,6 @@ console.log("CURRENT WEBSITE USER ID:", user.id);
       }
 
       // WITHDRAWALS
-
       const {
         data: withdrawalData,
         error: withdrawalError,
@@ -442,7 +478,6 @@ console.log("CURRENT WEBSITE USER ID:", user.id);
       }));
 
       // REFERRAL REWARDS
-
       const {
         data: rewardData,
         error: rewardError,
@@ -460,7 +495,6 @@ console.log("CURRENT WEBSITE USER ID:", user.id);
       }
 
       // ADMIN NOTIFICATIONS
-
       const {
         data: notificationData,
         error: notificationError,
