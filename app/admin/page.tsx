@@ -166,9 +166,24 @@ export default function AdminDashboard() {
   setMessage("");
 
   try {
+    // Get current logged-in user
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+      throw userError;
+    }
+
+    if (!user) {
+      throw new Error("Please login again.");
+    }
+
     const { data, error } = await supabase.rpc(
       "publish_announcement",
       {
+        p_user_id: user.id,
         p_title: title,
         p_message: announcementText,
       }
