@@ -14,6 +14,7 @@ type Announcement = {
   id: string;
   title: string;
   message: string;
+  image_url: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -168,7 +169,7 @@ export default function Dashboard() {
       } = await supabase
         .from("app_announcements")
         .select(
-          "id, title, message, is_active, created_at, updated_at"
+          "id, title, message, image_url, is_active, created_at, updated_at"
         )
         .eq("is_active", true)
         .order("created_at", {
@@ -525,7 +526,15 @@ export default function Dashboard() {
             </div>
 
             <div className="p-5 text-center">
-
+{announcement.image_url && (
+  <div className="mb-5 overflow-hidden rounded-xl">
+    <img
+      src={announcement.image_url}
+      alt={announcement.title}
+      className="w-full max-h-[500px] object-contain rounded-xl"
+    />
+  </div>
+)}
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
                 {announcement.title}
               </h2>
