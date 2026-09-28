@@ -197,10 +197,8 @@ export default function AdminDashboard() {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setMessage(
-        "Image size must be 5 MB or less."
-      );
+    if (file.size > 20 * 1024 * 1024) {
+     setMessage("Image size must be 20 MB or less.");
 
       event.target.value = "";
       return;
