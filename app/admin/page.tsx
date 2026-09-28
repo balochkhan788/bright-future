@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
@@ -100,7 +100,10 @@ export default function AdminDashboard() {
     "G-7": 0,
   });
 
+  // =========================
   // ANNOUNCEMENT
+  // =========================
+
   const [announcement, setAnnouncement] =
     useState<Announcement | null>(null);
 
@@ -112,22 +115,31 @@ export default function AdminDashboard() {
 
   const [savingAnnouncement, setSavingAnnouncement] =
     useState(false);
-const [announcementImage, setAnnouncementImage] =
-  useState<File | null>(null);
 
-const [announcementImagePreview, setAnnouncementImagePreview] =
-  useState<string | null>(null);
+  const [announcementImage, setAnnouncementImage] =
+    useState<File | null>(null);
+
+  const [announcementImagePreview, setAnnouncementImagePreview] =
+    useState<string | null>(null);
+
+  const announcementFileInputRef =
+    useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
     loadAdmin();
     loadAnnouncement();
   }, []);
 
+  // =========================
+  // LOAD ANNOUNCEMENT
+  // =========================
+
   async function loadAnnouncement() {
     const { data, error } = await supabase
       .from("app_announcements")
       .select(
-  "id, title, message, image_url, is_active, created_at, updated_at"
-)
+        "id, title, message, image_url, is_active, created_at, updated_at"
+      )
       .eq("is_active", true)
       .order("created_at", {
         ascending: false,
@@ -143,23 +155,77 @@ const [announcementImagePreview, setAnnouncementImagePreview] =
       return;
     }
 
-    setAnnouncement(
-      (data as Announcement | null) || null
-    );
-setAnnouncementImagePreview(
-  data?.image_url || null
-);
+    const loadedAnnouncement =
+      (data as Announcement | null) || null;
+
+    setAnnouncement(loadedAnnouncement);
+
     setAnnouncementTitle(
-      data?.title || ""
+      loadedAnnouncement?.title || ""
     );
 
     setAnnouncementMessage(
-      data?.message || ""
+      loadedAnnouncement?.message || ""
     );
+
+    setAnnouncementImagePreview(
+      loadedAnnouncement?.image_url || null
+    );
+
+    setAnnouncementImage(null);
   }
 
+  // =========================
+  // CHOOSE ANNOUNCEMENT IMAGE
+  // =========================
+
+  function handleAnnouncementImageChange(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setMessage(
+        "Please select an image file."
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage(
+        "Image size must be 5 MB or less."
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    setAnnouncementImage(file);
+
+    const previewUrl =
+      URL.createObjectURL(file);
+
+    setAnnouncementImagePreview(
+      previewUrl
+    );
+
+    setMessage("");
+  }
+
+  // =========================
+  // SAVE ANNOUNCEMENT
+  // =========================
+
   async function saveAnnouncement() {
-    const title = announcementTitle.trim();
+    const title =
+      announcementTitle.trim();
+
     const announcementText =
       announcementMessage.trim();
 
@@ -184,10 +250,95 @@ setAnnouncementImagePreview(
       }
 
       if (!user) {
-        throw new Error("Please login again.");
+        throw new Error(
+          "Please login again."
+        );
       }
 
-      const { data, error } = await supabase.rpc(
+      // Admin check
+      const {
+        data: admin,
+        error: adminError,
+      } = await supabase
+        .from("admin_users")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (adminError) {
+        throw adminError;
+      }
+
+      if (!admin) {
+        throw new Error(
+          "Access denied. Admin only."
+        );
+      }
+
+      // =========================
+      // UPLOAD IMAGE
+      // =========================
+
+      let imageUrl =
+        announcement?.image_url || null;
+
+      if (announcementImage) {
+        const fileExtension =
+          announcementImage.name
+            .split(".")
+            .pop()
+            ?.toLowerCase() || "jpg";
+
+        const safeFileName =
+          announcementImage.name
+            .replace(
+              /[^a-zA-Z0-9.-]/g,
+              "-"
+            )
+            .toLowerCase();
+
+        const filePath =
+          `announcements/${user.id}-${Date.now()}-${safeFileName}`;
+
+        const {
+          error: uploadError,
+        } = await supabase.storage
+          .from("announcement-images")
+          .upload(
+            filePath,
+            announcementImage,
+            {
+              upsert: false,
+              contentType:
+                announcementImage.type ||
+                `image/${fileExtension}`,
+            }
+          );
+
+        if (uploadError) {
+          throw new Error(
+            `Image upload failed: ${uploadError.message}`
+          );
+        }
+
+        const {
+          data: publicUrlData,
+        } = supabase.storage
+          .from("announcement-images")
+          .getPublicUrl(filePath);
+
+        imageUrl =
+          publicUrlData.publicUrl;
+      }
+
+      // =========================
+      // PUBLISH / UPDATE TEXT
+      // =========================
+
+      const {
+        data: rpcData,
+        error: rpcError,
+      } = await supabase.rpc(
         "publish_announcement",
         {
           p_user_id: user.id,
@@ -196,14 +347,82 @@ setAnnouncementImagePreview(
         }
       );
 
-      if (error) {
-        throw error;
+      if (rpcError) {
+        throw rpcError;
       }
 
       console.log(
         "Announcement published:",
-        data
+        rpcData
       );
+
+      // =========================
+      // GET ACTIVE ANNOUNCEMENT
+      // =========================
+
+      const {
+        data: latestAnnouncement,
+        error:
+          latestAnnouncementError,
+      } = await supabase
+        .from("app_announcements")
+        .select(
+          "id, title, message, image_url, is_active, created_at, updated_at"
+        )
+        .eq("is_active", true)
+        .order("created_at", {
+          ascending: false,
+        })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestAnnouncementError) {
+        throw latestAnnouncementError;
+      }
+
+      // =========================
+      // SAVE IMAGE URL
+      // =========================
+
+      if (latestAnnouncement?.id) {
+        const {
+          error: imageSaveError,
+        } = await supabase
+          .from("app_announcements")
+          .update({
+            image_url: imageUrl,
+          })
+          .eq(
+            "id",
+            latestAnnouncement.id
+          );
+
+        if (imageSaveError) {
+          throw new Error(
+            `Image URL save failed: ${imageSaveError.message}`
+          );
+        }
+      }
+
+      // Clear selected file
+      setAnnouncementImage(null);
+
+      if (
+        announcementFileInputRef.current
+      ) {
+        announcementFileInputRef.current.value =
+          "";
+      }
+
+      if (
+        announcementImagePreview?.startsWith(
+          "blob:"
+        )
+      ) {
+        URL.revokeObjectURL(
+          announcementImagePreview
+        );
+      }
 
       setMessage(
         announcement
@@ -231,7 +450,10 @@ setAnnouncementImagePreview(
     }
   }
 
-  // ANNOUNCEMENT REMOVE - RPC VERSION
+  // =========================
+  // REMOVE ANNOUNCEMENT
+  // =========================
+
   async function deleteAnnouncement() {
     if (!announcement) {
       setMessage(
@@ -261,16 +483,20 @@ setAnnouncementImagePreview(
       }
 
       if (!user) {
-        throw new Error("Please login again.");
+        throw new Error(
+          "Please login again."
+        );
       }
 
-      const { error } = await supabase.rpc(
-        "remove_announcement",
-        {
-          p_user_id: user.id,
-          p_announcement_id: announcement.id,
-        }
-      );
+      const { error } =
+        await supabase.rpc(
+          "remove_announcement",
+          {
+            p_user_id: user.id,
+            p_announcement_id:
+              announcement.id,
+          }
+        );
 
       if (error) {
         throw error;
@@ -279,6 +505,15 @@ setAnnouncementImagePreview(
       setAnnouncement(null);
       setAnnouncementTitle("");
       setAnnouncementMessage("");
+      setAnnouncementImage(null);
+      setAnnouncementImagePreview(null);
+
+      if (
+        announcementFileInputRef.current
+      ) {
+        announcementFileInputRef.current.value =
+          "";
+      }
 
       setMessage(
         "Announcement removed from Dashboard."
@@ -302,6 +537,10 @@ setAnnouncementImagePreview(
     }
   }
 
+  // =========================
+  // LOAD ADMIN
+  // =========================
+
   async function loadAdmin() {
     setLoading(true);
     setMessage("");
@@ -321,19 +560,24 @@ setAnnouncementImagePreview(
         user.id
       );
 
-      const { data: admin, error: adminError } =
-        await supabase
-          .from("admin_users")
-          .select("user_id")
-          .eq("user_id", user.id)
-          .maybeSingle();
+      const {
+        data: admin,
+        error: adminError,
+      } = await supabase
+        .from("admin_users")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
       if (adminError || !admin) {
-        setMessage("Access denied. Admin only.");
+        setMessage(
+          "Access denied. Admin only."
+        );
         return;
       }
 
       // MEMBERS & PLAN STATISTICS
+
       const {
         data: walletUsers,
         error: walletUsersError,
@@ -342,52 +586,77 @@ setAnnouncementImagePreview(
         .select("user_id");
 
       if (walletUsersError) {
-        console.error(walletUsersError);
+        console.error(
+          walletUsersError
+        );
       }
 
-      const allUserIds = Array.from(
-        new Set(
-          (walletUsers || []).map(
-            (item: { user_id: string }) =>
-              item.user_id
+      const allUserIds =
+        Array.from(
+          new Set(
+            (walletUsers || []).map(
+              (item: {
+                user_id: string;
+              }) => item.user_id
+            )
           )
-        )
-      );
+        );
 
-      setTotalMembers(allUserIds.length);
+      setTotalMembers(
+        allUserIds.length
+      );
 
       const {
         data: activePlans,
         error: activePlansError,
       } = await supabase
         .from("user_plans")
-        .select("user_id, plan_name")
-        .eq("status", "active");
+        .select(
+          "user_id, plan_name"
+        )
+        .eq(
+          "status",
+          "active"
+        );
 
       if (activePlansError) {
-        console.error(activePlansError);
+        console.error(
+          activePlansError
+        );
       }
 
-      const activePlanRows = activePlans || [];
+      const activePlanRows =
+        activePlans || [];
 
-      const activeUserIds = new Set(
-        activePlanRows.map(
-          (item: { user_id: string }) =>
-            item.user_id
-        )
+      const activeUserIds =
+        new Set(
+          activePlanRows.map(
+            (item: {
+              user_id: string;
+            }) => item.user_id
+          )
+        );
+
+      setActivePlanMembers(
+        activeUserIds.size
       );
 
-      setActivePlanMembers(activeUserIds.size);
-
-      const usersWithoutPlan = allUserIds.filter(
-        (userId) => !activeUserIds.has(userId)
-      );
+      const usersWithoutPlan =
+        allUserIds.filter(
+          (userId) =>
+            !activeUserIds.has(
+              userId
+            )
+        );
 
       setWithoutPlanMembers(
         usersWithoutPlan.length
       );
 
-      const counts: Record<string, number> = {
+      const counts: Record<
+        string,
+        number
+      > = {
         "G-1": 0,
         "G-2": 0,
         "G-3": 0,
@@ -403,9 +672,12 @@ setAnnouncementImagePreview(
           plan_name: string;
         }) => {
           if (
-            counts[item.plan_name] !== undefined
+            counts[item.plan_name] !==
+            undefined
           ) {
-            counts[item.plan_name] += 1;
+            counts[
+              item.plan_name
+            ] += 1;
           }
         }
       );
@@ -413,6 +685,7 @@ setAnnouncementImagePreview(
       setPlanCounts(counts);
 
       // DEPOSITS
+
       const {
         data: depositData,
         error: depositError,
@@ -421,15 +694,21 @@ setAnnouncementImagePreview(
         .select(
           "id, user_id, amount, status, created_at"
         )
-        .order("created_at", {
-          ascending: false,
-        });
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          }
+        );
 
       if (depositError) {
-        console.error(depositError);
+        console.error(
+          depositError
+        );
       }
 
       // WITHDRAWALS
+
       const {
         data: withdrawalData,
         error: withdrawalError,
@@ -452,39 +731,56 @@ setAnnouncementImagePreview(
           )
         `
         )
-        .order("created_at", {
-          ascending: false,
-        });
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          }
+        );
 
       if (withdrawalError) {
-        console.error(withdrawalError);
+        console.error(
+          withdrawalError
+        );
       }
 
-      const formattedWithdrawals: Withdrawal[] = (
-        withdrawalData || []
-      ).map((item: any) => ({
-        id: item.id,
-        user_id: item.user_id,
-        amount: Number(item.amount || 0),
-        status: item.status,
-        created_at: item.created_at,
+      const formattedWithdrawals: Withdrawal[] =
+        (withdrawalData || []).map(
+          (item: any) => ({
+            id: item.id,
+            user_id: item.user_id,
+            amount: Number(
+              item.amount || 0
+            ),
+            status: item.status,
+            created_at:
+              item.created_at,
 
-        payment_transaction_id:
-          item.payment_transaction_id || null,
+            payment_transaction_id:
+              item.payment_transaction_id ||
+              null,
 
-        paid_at:
-          item.paid_at || null,
+            paid_at:
+              item.paid_at || null,
 
-        withdrawal_method_id:
-          item.withdrawal_method_id || null,
+            withdrawal_method_id:
+              item.withdrawal_method_id ||
+              null,
 
-        withdrawal_method:
-          Array.isArray(item.withdrawal_method)
-            ? item.withdrawal_method[0] || null
-            : item.withdrawal_method || null,
-      }));
+            withdrawal_method:
+              Array.isArray(
+                item.withdrawal_method
+              )
+                ? item
+                    .withdrawal_method[0] ||
+                  null
+                : item.withdrawal_method ||
+                  null,
+          })
+        );
 
       // REFERRAL REWARDS
+
       const {
         data: rewardData,
         error: rewardError,
@@ -493,30 +789,43 @@ setAnnouncementImagePreview(
         .select(
           "id, user_id, reward_type, amount, description, status, created_at"
         )
-        .order("created_at", {
-          ascending: false,
-        });
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          }
+        );
 
       if (rewardError) {
-        console.error(rewardError);
+        console.error(
+          rewardError
+        );
       }
 
       // ADMIN NOTIFICATIONS
+
       const {
         data: notificationData,
         error: notificationError,
       } = await supabase
-        .from("admin_notifications")
+        .from(
+          "admin_notifications"
+        )
         .select(
           "id, type, title, message, reference_id, is_read, created_at"
         )
-        .order("created_at", {
-          ascending: false,
-        })
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          }
+        )
         .limit(20);
 
       if (notificationError) {
-        console.error(notificationError);
+        console.error(
+          notificationError
+        );
       }
 
       setDeposits(
@@ -528,11 +837,13 @@ setAnnouncementImagePreview(
       );
 
       setReferralRewards(
-        (rewardData || []) as ReferralReward[]
+        (rewardData ||
+          []) as ReferralReward[]
       );
 
       setNotifications(
-        (notificationData || []) as AdminNotification[]
+        (notificationData ||
+          []) as AdminNotification[]
       );
     } catch (error) {
       console.error(error);
@@ -545,67 +856,90 @@ setAnnouncementImagePreview(
     }
   }
 
+  // =========================
+  // NOTIFICATIONS
+  // =========================
+
   async function markNotificationRead(
     id: string
   ) {
-    const { error } = await supabase
-      .from("admin_notifications")
-      .update({
-        is_read: true,
-      })
-      .eq("id", id);
+    const { error } =
+      await supabase
+        .from(
+          "admin_notifications"
+        )
+        .update({
+          is_read: true,
+        })
+        .eq("id", id);
 
     if (error) {
       console.error(error);
       return;
     }
 
-    setNotifications((previous) =>
-      previous.map((notification) =>
-        notification.id === id
-          ? {
-              ...notification,
-              is_read: true,
-            }
-          : notification
-      )
+    setNotifications(
+      (previous) =>
+        previous.map(
+          (notification) =>
+            notification.id === id
+              ? {
+                  ...notification,
+                  is_read: true,
+                }
+              : notification
+        )
     );
   }
 
   async function markAllNotificationsRead() {
-    const unreadIds = notifications
-      .filter(
-        (notification) =>
-          !notification.is_read
-      )
-      .map(
-        (notification) =>
-          notification.id
-      );
+    const unreadIds =
+      notifications
+        .filter(
+          (notification) =>
+            !notification.is_read
+        )
+        .map(
+          (notification) =>
+            notification.id
+        );
 
     if (unreadIds.length === 0) {
       return;
     }
 
-    const { error } = await supabase
-      .from("admin_notifications")
-      .update({
-        is_read: true,
-      })
-      .in("id", unreadIds);
+    const { error } =
+      await supabase
+        .from(
+          "admin_notifications"
+        )
+        .update({
+          is_read: true,
+        })
+        .in(
+          "id",
+          unreadIds
+        );
 
     if (error) {
       console.error(error);
       return;
     }
 
-    setNotifications((previous) =>
-      previous.map((notification) => ({
-        ...notification,
-        is_read: true,
-      }))
+    setNotifications(
+      (previous) =>
+        previous.map(
+          (notification) => ({
+            ...notification,
+            is_read: true,
+          })
+        )
     );
   }
+
+  // =========================
+  // DEPOSIT
+  // =========================
 
   async function approveDeposit(
     id: string
@@ -640,6 +974,10 @@ setAnnouncementImagePreview(
 
     setProcessingDeposit(null);
   }
+
+  // =========================
+  // WITHDRAWAL
+  // =========================
 
   async function approveWithdrawal(
     id: string
@@ -712,9 +1050,10 @@ setAnnouncementImagePreview(
   async function markWithdrawalPaid(
     id: string
   ) {
-    const transactionId = window.prompt(
-      "Enter payment transaction/reference ID:"
-    );
+    const transactionId =
+      window.prompt(
+        "Enter payment transaction/reference ID:"
+      );
 
     if (!transactionId?.trim()) {
       setMessage(
@@ -733,16 +1072,21 @@ setAnnouncementImagePreview(
 
     setProcessingWithdrawal(id);
 
-    const { error } = await supabase
-      .from("withdrawals")
-      .update({
-        status: "paid",
-        payment_transaction_id:
-          transactionId.trim(),
-        paid_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .eq("status", "approved");
+    const { error } =
+      await supabase
+        .from("withdrawals")
+        .update({
+          status: "paid",
+          payment_transaction_id:
+            transactionId.trim(),
+          paid_at:
+            new Date().toISOString(),
+        })
+        .eq("id", id)
+        .eq(
+          "status",
+          "approved"
+        );
 
     if (error) {
       console.error(error);
@@ -757,6 +1101,10 @@ setAnnouncementImagePreview(
 
     setProcessingWithdrawal(null);
   }
+
+  // =========================
+  // REFERRAL REWARDS
+  // =========================
 
   async function approveReward(
     id: string
@@ -791,7 +1139,10 @@ setAnnouncementImagePreview(
           status: "approved",
         })
         .eq("id", id)
-        .eq("status", "pending");
+        .eq(
+          "status",
+          "pending"
+        );
 
     if (error) {
       setMessage(error.message);
@@ -826,7 +1177,10 @@ setAnnouncementImagePreview(
           status: "rejected",
         })
         .eq("id", id)
-        .eq("status", "pending");
+        .eq(
+          "status",
+          "pending"
+        );
 
     if (error) {
       setMessage(error.message);
@@ -902,6 +1256,8 @@ setAnnouncementImagePreview(
     <main className="min-h-screen bg-slate-950 p-5 text-white">
       <div className="mx-auto max-w-6xl">
 
+        {/* HEADER */}
+
         <div className="mb-8">
 
           <h1 className="text-3xl font-bold">
@@ -932,7 +1288,9 @@ setAnnouncementImagePreview(
             📢 Meeting Group
           </Link>
 
-          {/* ANNOUNCEMENT CONTROL */}
+          {/* =========================
+              ANNOUNCEMENT CONTROL
+          ========================= */}
 
           <div className="mt-4 rounded-2xl border border-yellow-400/40 bg-yellow-400/10 p-4">
 
@@ -968,7 +1326,59 @@ setAnnouncementImagePreview(
               className="mt-3 w-full resize-none rounded-xl border border-white/10 bg-slate-900 p-3 text-white outline-none focus:border-yellow-400"
             />
 
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            {/* ANNOUNCEMENT PICTURE */}
+
+            <div className="mt-4 rounded-xl border border-white/10 bg-slate-900/60 p-4">
+
+              <p className="mb-3 font-bold text-white">
+                🖼️ Announcement Picture
+              </p>
+
+              <input
+                ref={
+                  announcementFileInputRef
+                }
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                onChange={
+                  handleAnnouncementImageChange
+                }
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  announcementFileInputRef.current?.click()
+                }
+                className="rounded-xl bg-blue-500 px-5 py-3 font-bold text-white"
+              >
+                🖼️ Choose Picture
+              </button>
+
+              <p className="mt-2 text-xs text-slate-400">
+                JPG, PNG, WEBP — Maximum 5 MB
+              </p>
+
+              {announcementImagePreview && (
+                <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-black">
+
+                  <img
+                    src={
+                      announcementImagePreview
+                    }
+                    alt="Announcement Preview"
+                    className="max-h-[350px] w-full object-contain"
+                  />
+
+                </div>
+              )}
+
+            </div>
+
+            {/* PUBLISH / REMOVE */}
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
 
               <button
                 type="button"
@@ -998,8 +1408,7 @@ setAnnouncementImagePreview(
 
             {announcement && (
               <div className="mt-3 rounded-xl bg-green-500/10 p-3 text-center text-xs text-green-400">
-                Active announcement is currently
-                showing on Dashboard.
+                ✅ Active announcement is currently showing on Dashboard.
               </div>
             )}
 
@@ -1007,11 +1416,15 @@ setAnnouncementImagePreview(
 
         </div>
 
+        {/* MESSAGE */}
+
         {!loading && message && (
           <div className="mb-6 rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-4 text-center text-cyan-300">
             {message}
           </div>
         )}
+
+        {/* LOADING */}
 
         {loading && (
           <div className="mb-6 rounded-xl bg-white/5 p-5 text-center">
@@ -1019,7 +1432,7 @@ setAnnouncementImagePreview(
           </div>
         )}
 
-        {/* MEMBERS & PLANS OVERVIEW */}
+        {/* MEMBERS & PLANS */}
 
         {!loading && (
           <section className="mb-10">
@@ -1064,7 +1477,9 @@ setAnnouncementImagePreview(
 
             <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
 
-              {Object.entries(planCounts).map(
+              {Object.entries(
+                planCounts
+              ).map(
                 ([plan, count]) => (
                   <div
                     key={plan}
@@ -1096,14 +1511,18 @@ setAnnouncementImagePreview(
               <h2 className="text-2xl font-bold">
                 🔔 Notifications
 
-                {unreadNotifications > 0 && (
+                {unreadNotifications >
+                  0 && (
                   <span className="ml-2 rounded-full bg-red-500 px-2 py-1 text-xs">
-                    {unreadNotifications}
+                    {
+                      unreadNotifications
+                    }
                   </span>
                 )}
               </h2>
 
-              {unreadNotifications > 0 && (
+              {unreadNotifications >
+                0 && (
                 <button
                   type="button"
                   onClick={
@@ -1117,7 +1536,8 @@ setAnnouncementImagePreview(
 
             </div>
 
-            {notifications.length === 0 ? (
+            {notifications.length ===
+            0 ? (
               <div className="rounded-xl bg-white/5 p-5 text-slate-400">
                 No notifications.
               </div>
@@ -1148,11 +1568,15 @@ setAnnouncementImagePreview(
                         <div className="min-w-0">
 
                           <h3 className="font-bold">
-                            {notification.title}
+                            {
+                              notification.title
+                            }
                           </h3>
 
                           <p className="mt-1 text-sm text-slate-300">
-                            {notification.message}
+                            {
+                              notification.message
+                            }
                           </p>
 
                           <p className="mt-2 text-xs text-slate-500">
@@ -1189,7 +1613,8 @@ setAnnouncementImagePreview(
             🎁 Referral Reward Requests
           </h2>
 
-          {referralRewards.length === 0 ? (
+          {referralRewards.length ===
+          0 ? (
             <div className="rounded-xl bg-white/5 p-5 text-slate-400">
               No referral reward requests.
             </div>
@@ -1215,7 +1640,9 @@ setAnnouncementImagePreview(
                       <span className="text-slate-400">
                         Type:{" "}
                       </span>
-                      {reward.reward_type}
+                      {
+                        reward.reward_type
+                      }
                     </p>
 
                     <p className="mt-1">
@@ -1240,7 +1667,9 @@ setAnnouncementImagePreview(
 
                     {reward.description && (
                       <p className="mt-3 rounded-lg bg-black/20 p-3 text-sm text-slate-300">
-                        {reward.description}
+                        {
+                          reward.description
+                        }
                       </p>
                     )}
 
@@ -1437,7 +1866,8 @@ setAnnouncementImagePreview(
             💸 Withdrawal Requests
           </h2>
 
-          {withdrawals.length === 0 ? (
+          {withdrawals.length ===
+          0 ? (
             <div className="rounded-xl bg-white/5 p-5 text-slate-400">
               No withdrawal requests.
             </div>
@@ -1456,7 +1886,9 @@ setAnnouncementImagePreview(
                     </p>
 
                     <p className="break-all text-xs">
-                      {withdrawal.user_id}
+                      {
+                        withdrawal.user_id
+                      }
                     </p>
 
                     <p className="mt-3 text-2xl font-bold">
@@ -1473,7 +1905,9 @@ setAnnouncementImagePreview(
                           withdrawal.status
                         )}`}
                       >
-                        {withdrawal.status}
+                        {
+                          withdrawal.status
+                        }
                       </span>
                     </p>
 
@@ -1616,6 +2050,8 @@ setAnnouncementImagePreview(
           )}
 
         </section>
+
+        {/* REFRESH */}
 
         <button
           onClick={loadAdmin}
