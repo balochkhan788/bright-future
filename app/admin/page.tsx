@@ -54,6 +54,7 @@ type Announcement = {
   id: string;
   title: string;
   message: string;
+  image_url: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -111,7 +112,11 @@ export default function AdminDashboard() {
 
   const [savingAnnouncement, setSavingAnnouncement] =
     useState(false);
+const [announcementImage, setAnnouncementImage] =
+  useState<File | null>(null);
 
+const [announcementImagePreview, setAnnouncementImagePreview] =
+  useState<string | null>(null);
   useEffect(() => {
     loadAdmin();
     loadAnnouncement();
@@ -121,8 +126,8 @@ export default function AdminDashboard() {
     const { data, error } = await supabase
       .from("app_announcements")
       .select(
-        "id, title, message, is_active, created_at, updated_at"
-      )
+  "id, title, message, image_url, is_active, created_at, updated_at"
+)
       .eq("is_active", true)
       .order("created_at", {
         ascending: false,
@@ -141,7 +146,9 @@ export default function AdminDashboard() {
     setAnnouncement(
       (data as Announcement | null) || null
     );
-
+setAnnouncementImagePreview(
+  data?.image_url || null
+);
     setAnnouncementTitle(
       data?.title || ""
     );
