@@ -662,7 +662,8 @@ console.log("WALLETS COUNT:", walletUsers?.length);
           activePlansError
         );
       }
-
+console.log("ACTIVE PLANS DATA:", activePlans);
+console.log("ACTIVE PLANS ERROR:", activePlansError);
       const activePlanRows =
         activePlans || [];
 
