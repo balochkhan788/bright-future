@@ -664,6 +664,9 @@ console.log("WALLETS COUNT:", walletUsers?.length);
       }
 console.log("ACTIVE PLANS DATA:", activePlans);
 console.log("ACTIVE PLANS ERROR:", activePlansError);
+setMessage(
+  `DEBUG: Active Plans = ${activePlans?.length ?? 0}, Error = ${activePlansError?.message ?? "none"}`
+);
       const activePlanRows =
         activePlans || [];
 
