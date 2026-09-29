@@ -269,7 +269,7 @@ export default function TaskPage() {
     setTasks(taskList);
     setLoading(false);
   }
-
+async function completeTask(taskNumber: number) {
   const voice = new SpeechSynthesisUtterance(
   "Get Task and Start Earnings — Bright Future."
 );
