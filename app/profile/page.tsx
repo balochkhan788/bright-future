@@ -1,4 +1,38 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+
 export default function Profile() {
+  const [fullName, setFullName] = useState("Loading...");
+  const [email, setEmail] = useState("Loading...");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  async function loadProfile() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const name =
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      "Member";
+
+    setFullName(name);
+    setEmail(user.email || "No email");
+
+    setLoading(false);
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 p-8 text-white">
       <div className="mx-auto max-w-3xl">
@@ -10,14 +44,18 @@ export default function Profile() {
 
         <div className="mt-6 rounded-xl bg-white/10 p-6">
           <p className="text-slate-400">Full Name</p>
-          <p className="mt-1 text-xl font-semibold">Demo User</p>
+          <p className="mt-1 text-xl font-semibold">
+            {loading ? "Loading..." : fullName}
+          </p>
 
           <p className="mt-6 text-slate-400">Email</p>
-          <p className="mt-1 text-xl font-semibold">demo@example.com</p>
+          <p className="mt-1 text-xl font-semibold">
+            {loading ? "Loading..." : email}
+          </p>
 
           <p className="mt-6 text-slate-400">Account Type</p>
           <p className="mt-1 text-xl font-semibold text-cyan-400">
-            Demo Account
+            Member Account
           </p>
         </div>
 
