@@ -253,13 +253,12 @@ export default function Withdraw() {
           {/* MESSAGE */}
 
           {message && (
-            <div className="mt-5 rounded-lg bg-yellow-400/10 p-4 text-center">
-              <p className="text-yellow-400">
-                {message}
-              </p>
-            </div>
-          )}
-
+  <div className="mt-5 rounded-lg bg-emerald-400/10 p-4 text-center">
+    <p className="text-emerald-400">
+      {message}
+    </p>
+  </div>
+)}
           {/* HISTORY */}
 
           <a
