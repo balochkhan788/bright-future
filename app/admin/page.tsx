@@ -669,7 +669,9 @@ setMessage(
 );
       const activePlanRows = (activePlans || []).filter(
   (item: { user_id: string; plan_name: string }) =>
-    item.plan_name === "G-3"
+    ["G-1", "G-2", "G-3", "G-4", "G-5", "G-6", "G-7"].includes(
+      item.plan_name
+    )
 );
 
       const activeUserIds =
