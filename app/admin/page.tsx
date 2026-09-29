@@ -221,232 +221,270 @@ export default function AdminDashboard() {
   // =========================
 
   async function saveAnnouncement() {
-    const title =
-      announcementTitle.trim();
+  const title = announcementTitle.trim();
+  const announcementText = announcementMessage.trim();
 
-    const announcementText =
-      announcementMessage.trim();
-
-    if (!title || !announcementText) {
-      setMessage(
-        "Announcement title and message are required."
-      );
-      return;
-    }
-
-    setSavingAnnouncement(true);
-    setMessage("");
-
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        throw userError;
-      }
-
-      if (!user) {
-        throw new Error(
-          "Please login again."
-        );
-      }
-
-      // Admin check
-      const {
-        data: admin,
-        error: adminError,
-      } = await supabase
-        .from("admin_users")
-        .select("user_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (adminError) {
-        throw adminError;
-      }
-
-      if (!admin) {
-        throw new Error(
-          "Access denied. Admin only."
-        );
-      }
-
-      // =========================
-      // UPLOAD IMAGE
-      // =========================
-
-      let imageUrl =
-        announcement?.image_url || null;
-
-      if (announcementImage) {
-        const fileExtension =
-          announcementImage.name
-            .split(".")
-            .pop()
-            ?.toLowerCase() || "jpg";
-
-        const safeFileName =
-          announcementImage.name
-            .replace(
-              /[^a-zA-Z0-9.-]/g,
-              "-"
-            )
-            .toLowerCase();
-
-        const filePath =
-          `announcements/${user.id}-${Date.now()}-${safeFileName}`;
-
-        const {
-          error: uploadError,
-        } = await supabase.storage
-          .from("announcement-images")
-          .upload(
-            filePath,
-            announcementImage,
-            {
-              upsert: false,
-              contentType:
-                announcementImage.type ||
-                `image/${fileExtension}`,
-            }
-          );
-
-        if (uploadError) {
-          throw new Error(
-            `Image upload failed: ${uploadError.message}`
-          );
-        }
-
-        const {
-          data: publicUrlData,
-        } = supabase.storage
-          .from("announcement-images")
-          .getPublicUrl(filePath);
-
-        imageUrl =
-          publicUrlData.publicUrl;
-      }
-
-      // =========================
-      // PUBLISH / UPDATE TEXT
-      // =========================
-
-      const {
-        data: rpcData,
-        error: rpcError,
-      } = await supabase.rpc(
-        "publish_announcement",
-        {
-          p_user_id: user.id,
-          p_title: title,
-          p_message: announcementText,
-        }
-      );
-
-      if (rpcError) {
-        throw rpcError;
-      }
-
-      console.log(
-        "Announcement published:",
-        rpcData
-      );
-
-      // =========================
-      // GET ACTIVE ANNOUNCEMENT
-      // =========================
-
-      const {
-        data: latestAnnouncement,
-        error:
-          latestAnnouncementError,
-      } = await supabase
-        .from("app_announcements")
-        .select(
-          "id, title, message, image_url, is_active, created_at, updated_at"
-        )
-        .eq("is_active", true)
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(1)
-        .maybeSingle();
-
-      if (latestAnnouncementError) {
-        throw latestAnnouncementError;
-      }
-
-      // =========================
-      // SAVE IMAGE URL
-      // =========================
-
-      if (latestAnnouncement?.id) {
-        const {
-          error: imageSaveError,
-        } = await supabase
-          .from("app_announcements")
-          .update({
-            image_url: imageUrl,
-          })
-          .eq(
-            "id",
-            latestAnnouncement.id
-          );
-
-        if (imageSaveError) {
-          throw new Error(
-            `Image URL save failed: ${imageSaveError.message}`
-          );
-        }
-      }
-
-      // Clear selected file
-      setAnnouncementImage(null);
-
-      if (
-        announcementFileInputRef.current
-      ) {
-        announcementFileInputRef.current.value =
-          "";
-      }
-
-      if (
-        announcementImagePreview?.startsWith(
-          "blob:"
-        )
-      ) {
-        URL.revokeObjectURL(
-          announcementImagePreview
-        );
-      }
-
-      setMessage(
-        announcement
-          ? "Announcement updated successfully."
-          : "Announcement published successfully."
-      );
-
-      await loadAnnouncement();
-    } catch (error: any) {
-      console.error(
-        "ANNOUNCEMENT SAVE ERROR:",
-        error
-      );
-
-      setMessage(
-        `Save Error: ${
-          error?.message ||
-          error?.details ||
-          error?.hint ||
-          "Unknown error"
-        }`
-      );
-    } finally {
-      setSavingAnnouncement(false);
-    }
+  if (!title || !announcementText) {
+    setMessage(
+      "Announcement title and message are required."
+    );
+    return;
   }
+
+  setSavingAnnouncement(true);
+  setMessage("");
+
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+      throw userError;
+    }
+
+    if (!user) {
+      throw new Error("Please login again.");
+    }
+
+    // =========================
+    // ADMIN CHECK
+    // =========================
+
+    const {
+      data: admin,
+      error: adminError,
+    } = await supabase
+      .from("admin_users")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (adminError) {
+      throw adminError;
+    }
+
+    if (!admin) {
+      throw new Error(
+        "Access denied. Admin only."
+      );
+    }
+
+    // =========================
+    // UPLOAD IMAGE
+    // =========================
+
+    let imageUrl =
+      announcement?.image_url || null;
+
+    if (announcementImage) {
+      const fileExtension =
+        announcementImage.name
+          .split(".")
+          .pop()
+          ?.toLowerCase() || "jpg";
+
+      const safeFileName =
+        announcementImage.name
+          .replace(
+            /[^a-zA-Z0-9.-]/g,
+            "-"
+          )
+          .toLowerCase();
+
+      const filePath =
+        `announcements/${user.id}-${Date.now()}-${safeFileName}`;
+
+      const {
+        error: uploadError,
+      } = await supabase.storage
+        .from("announcement-images")
+        .upload(
+          filePath,
+          announcementImage,
+          {
+            upsert: false,
+            contentType:
+              announcementImage.type ||
+              `image/${fileExtension}`,
+          }
+        );
+
+      if (uploadError) {
+        throw new Error(
+          `Image upload failed: ${uploadError.message}`
+        );
+      }
+
+      const {
+        data: publicUrlData,
+      } = supabase.storage
+        .from("announcement-images")
+        .getPublicUrl(filePath);
+
+      imageUrl =
+        publicUrlData.publicUrl;
+
+      if (!imageUrl) {
+        throw new Error(
+          "Image uploaded but public URL was not created."
+        );
+      }
+    }
+
+    console.log(
+      "ANNOUNCEMENT IMAGE URL:",
+      imageUrl
+    );
+
+    // =========================
+    // PUBLISH / UPDATE TEXT
+    // =========================
+
+    const {
+      data: rpcData,
+      error: rpcError,
+    } = await supabase.rpc(
+      "publish_announcement",
+      {
+        p_user_id: user.id,
+        p_title: title,
+        p_message: announcementText,
+      }
+    );
+
+    if (rpcError) {
+      throw rpcError;
+    }
+
+    console.log(
+      "Announcement published:",
+      rpcData
+    );
+
+    // =========================
+    // GET NEW ACTIVE ANNOUNCEMENT
+    // =========================
+
+    const {
+      data: latestAnnouncement,
+      error: latestAnnouncementError,
+    } = await supabase
+      .from("app_announcements")
+      .select(
+        "id, title, message, image_url, is_active, created_at, updated_at"
+      )
+      .eq("is_active", true)
+      .eq("title", title)
+      .eq("message", announcementText)
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestAnnouncementError) {
+      throw latestAnnouncementError;
+    }
+
+    if (!latestAnnouncement?.id) {
+      throw new Error(
+        "Announcement was published, but its database ID could not be found."
+      );
+    }
+
+    console.log(
+      "ANNOUNCEMENT ID:",
+      latestAnnouncement.id
+    );
+console.log("BEFORE IMAGE SAVE:", imageUrl);
+console.log("TARGET ANNOUNCEMENT ID:", latestAnnouncement.id);
+    // =========================
+    // SAVE IMAGE URL
+    // =========================
+
+    const {
+      data: updatedAnnouncement,
+      error: imageSaveError,
+    } = await supabase
+      .from("app_announcements")
+      .update({
+        image_url: imageUrl,
+      })
+      .eq(
+        "id",
+        latestAnnouncement.id
+      )
+      .select("id, image_url")
+      .maybeSingle();
+
+    if (imageSaveError) {
+      throw new Error(
+        `Image URL save failed: ${imageSaveError.message}`
+      );
+    }
+
+    if (!updatedAnnouncement) {
+      throw new Error(
+        "Image URL was not saved. Database update returned no row."
+      );
+    }
+
+    console.log(
+      "IMAGE URL SAVED:",
+      updatedAnnouncement.image_url
+    );
+
+    // =========================
+    // CLEAR SELECTED FILE
+    // =========================
+
+    setAnnouncementImage(null);
+
+    if (
+      announcementFileInputRef.current
+    ) {
+      announcementFileInputRef.current.value =
+        "";
+    }
+
+    if (
+      announcementImagePreview?.startsWith(
+        "blob:"
+      )
+    ) {
+      URL.revokeObjectURL(
+        announcementImagePreview
+      );
+    }
+
+    setMessage(
+      announcement
+        ? "Announcement updated successfully."
+        : "Announcement published successfully."
+    );
+
+    await loadAnnouncement();
+
+  } catch (error: any) {
+    console.error(
+      "ANNOUNCEMENT SAVE ERROR:",
+      error
+    );
+
+    setMessage(
+      `Save Error: ${
+        error?.message ||
+        error?.details ||
+        error?.hint ||
+        "Unknown error"
+      }`
+    );
+  } finally {
+    setSavingAnnouncement(false);
+  }
+}
 
   // =========================
   // REMOVE ANNOUNCEMENT
@@ -580,7 +618,7 @@ export default function AdminDashboard() {
         data: walletUsers,
         error: walletUsersError,
       } = await supabase
-        .from("wallet")
+        .from("wallets")
         .select("user_id");
 
       if (walletUsersError) {
@@ -588,7 +626,9 @@ export default function AdminDashboard() {
           walletUsersError
         );
       }
-
+console.log("WALLETS DATA:", walletUsers);
+console.log("WALLETS ERROR:", walletUsersError);
+console.log("WALLETS COUNT:", walletUsers?.length);
       const allUserIds =
         Array.from(
           new Set(
