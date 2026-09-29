@@ -53,9 +53,7 @@ export default function TaskPage() {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
 
-      if (audioContextRef.current) {
-        audioContextRef.current.close().catch(() => {});
-      }
+      
     };
   }, [workingTask]);
 
@@ -272,7 +270,14 @@ export default function TaskPage() {
     setLoading(false);
   }
 
-  async function completeTask(taskNumber: number) {
+  const voice = new SpeechSynthesisUtterance(
+  "Get Task and Start Earnings — Bright Future."
+);
+voice.lang = "en-US";
+voice.rate = 0.9;
+voice.volume = 1.0;
+window.speechSynthesis.cancel();
+window.speechSynthesis.speak(voice);
     if (workingTask !== null) return;
 
     setMessage("");
@@ -299,16 +304,13 @@ export default function TaskPage() {
 
     const audioContext = getAudioContext();
 
-    if (audioContext) {
-      try {
-        if (audioContext.state === "suspended") {
-          await audioContext.resume();
-        }
-      } catch {
-        // Ignore audio errors
-      }
-    }
-
+if (audioContext) {
+  try {
+    await audioContext.resume();
+  } catch {
+    // Ignore audio errors
+  }
+}
     setWorkingTask(taskNumber);
     setCountdown(COUNTDOWN_SECONDS);
 
