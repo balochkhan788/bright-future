@@ -148,18 +148,18 @@ export default function SupportPartner() {
 
       if (selectedFile) {
         const extension =
-          selectedFile.name.split(".").pop()?.toLowerCase() ||
-          "jpg";
+  selectedFile.name.split(".").pop()?.toLowerCase() ||
+  "jpg";
 
-        const filePath = '${user.id}/${Date.now()}.${extension}'
+const filePath = `${user.id}/${Date.now()}.${extension}`;
 
-        const { error: uploadError } =
-          await supabase.storage
-            .from("support-screenshots")
-            .upload(filePath, selectedFile, {
-              contentType: selectedFile.type,
-              upsert: false,
-            });
+const { error: uploadError } =
+  await supabase.storage
+    .from("support-screenshots")
+    .upload(filePath, selectedFile, {
+      contentType: selectedFile.type,
+      upsert: false,
+    });
 
         if (uploadError) {
           throw uploadError;
@@ -194,10 +194,10 @@ export default function SupportPartner() {
       removeScreenshot();
 
       await loadMessages();
-    } catch (err) {
-      console.error(err);
-      setError("Message send nahi ho saka.");
-    } finally {
+    } catch (err: any) {
+  console.error(err);
+  setError(err?.message || "Upload/send error");
+} finally {
       setSending(false);
     }
   }
