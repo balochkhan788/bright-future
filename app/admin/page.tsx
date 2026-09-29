@@ -667,8 +667,10 @@ console.log("ACTIVE PLANS ERROR:", activePlansError);
 setMessage(
   `DEBUG: Active Plans = ${activePlans?.length ?? 0}, Error = ${activePlansError?.message ?? "none"}`
 );
-      const activePlanRows =
-        activePlans || [];
+      const activePlanRows = (activePlans || []).filter(
+  (item: { user_id: string; plan_name: string }) =>
+    item.plan_name === "G-3"
+);
 
       const activeUserIds =
         new Set(
