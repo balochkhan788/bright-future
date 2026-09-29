@@ -161,7 +161,7 @@ export default function AdminSupport() {
           selectedFile.name.split(".").pop() || "png";
 
         const filePath =
-          '${selectedUser}/admin-${Date.now()}.${extension}';
+  `${selectedUser}/admin-${Date.now()}.${extension}`;
 
         const { error: uploadError } =
           await supabase.storage
