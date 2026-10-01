@@ -733,25 +733,15 @@ setMessage(
       // DEPOSITS
 
       const {
-        data: depositData,
-        error: depositError,
-      } = await supabase
-        .from("deposits")
-        .select(
-          "id, user_id, amount, status, created_at"
-        )
-        .order(
-          "created_at",
-          {
-            ascending: false,
-          }
-        );
+  data: depositData,
+  error: depositError,
+} = await supabase.rpc("get_admin_deposits");
 
-      if (depositError) {
-        console.error(
-          depositError
-        );
-      }
+if (depositError) {
+  console.error("Admin deposits error:", depositError);
+} else {
+  setDeposits((depositData || []) as Deposit[]);
+}
 
       // WITHDRAWALS
 
