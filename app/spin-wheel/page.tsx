@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 const rewards = [
@@ -23,14 +23,55 @@ const colors = [
   "#8b5cf6",
 ];
 
+const eligiblePlans = ["G-3", "G-4", "G-5", "G-6", "G-7"];
+
 export default function SpinWheelPage() {
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [winner, setWinner] = useState("");
   const [message, setMessage] = useState("");
+  const [checkingPlan, setCheckingPlan] = useState(true);
+  const [allowed, setAllowed] = useState(false);
+  const [planName, setPlanName] = useState("");
+
+  useEffect(() => {
+    checkPlan();
+  }, []);
+
+  async function checkPlan() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("user_plans")
+      .select("plan_name, status, created_at")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) {
+      setAllowed(false);
+      setCheckingPlan(false);
+      return;
+    }
+
+    const currentPlan = String(data.plan_name).trim().toUpperCase();
+
+    setPlanName(currentPlan);
+    setAllowed(eligiblePlans.includes(currentPlan));
+    setCheckingPlan(false);
+  }
 
   async function spin() {
-    if (spinning) return;
+    if (spinning || !allowed) return;
 
     setWinner("");
     setMessage("");
@@ -71,6 +112,59 @@ export default function SpinWheelPage() {
     colors[5] + " 257.15deg 308.58deg, " +
     colors[6] + " 308.58deg 360deg)";
 
+  if (checkingPlan) {
+    return (
+      <main className="min-h-screen bg-slate-950 px-4 py-8 text-white">
+        <div className="mx-auto max-w-md">
+          <h1 className="text-center text-3xl font-bold">
+            Bright Future
+          </h1>
+
+          <p className="mt-10 text-center text-slate-400">
+            Checking your plan...
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!allowed) {
+    return (
+      <main className="min-h-screen bg-slate-950 px-4 py-8 text-white">
+        <div className="mx-auto max-w-md">
+          <h1 className="text-center text-3xl font-bold">
+            Bright Future
+          </h1>
+
+          <p className="mt-2 text-center text-slate-400">
+            Spin & Win
+          </p>
+
+          <div className="mt-10 rounded-2xl border border-yellow-400/30 bg-yellow-400/10 p-6 text-center">
+            <p className="text-xl font-bold text-yellow-300">
+              Spin Wheel Available for G-3 to G-7
+            </p>
+
+            <p className="mt-3 text-slate-300">
+              Your current plan: {planName || "No Active Plan"}
+            </p>
+
+            <p className="mt-3 text-sm text-slate-400">
+              Upgrade to an eligible plan to use Spin Wheel.
+            </p>
+          </div>
+
+          <a
+            href="/dashboard"
+            className="mt-6 block text-center text-slate-400"
+          >
+            ← Back to Dashboard
+          </a>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white">
 
@@ -82,6 +176,10 @@ export default function SpinWheelPage() {
 
         <p className="mt-2 text-center text-slate-400">
           Spin & Win
+        </p>
+
+        <p className="mt-2 text-center text-sm text-cyan-400">
+          Active Plan: {planName}
         </p>
 
         <div className="relative mx-auto mt-10 h-80 w-80">
@@ -113,7 +211,8 @@ export default function SpinWheelPage() {
             {/* Amounts inside wheel */}
             {rewards.map(function (amount, index) {
 
-              const angle = index * (360 / rewards.length) +
+              const angle =
+                index * (360 / rewards.length) +
                 (180 / rewards.length);
 
               const amountTransform =
@@ -200,3 +299,7 @@ export default function SpinWheelPage() {
     </main>
   );
 }
+
+ابھی صرف یہ code save کریں۔ GitHub push نہ کریں۔
+
+Save کرنے کے بعد مجھے Done لکھ دیں۔ پھر ہم پہلے local/build error check کریں گے، اس کے بعد ہی push کریں گے۔

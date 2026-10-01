@@ -335,8 +335,8 @@ export default function Deposit() {
         );
 
         setMessage(
-          "Deposit request failed. Please try again."
-        );
+  "Deposit request failed: " + depositError.message
+);
 
         return;
       }
