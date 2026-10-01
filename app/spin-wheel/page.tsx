@@ -299,7 +299,3 @@ export default function SpinWheelPage() {
     </main>
   );
 }
-
-ابھی صرف یہ code save کریں۔ GitHub push نہ کریں۔
-
-Save کرنے کے بعد مجھے Done لکھ دیں۔ پھر ہم پہلے local/build error check کریں گے، اس کے بعد ہی push کریں گے۔
