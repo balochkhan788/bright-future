@@ -77,17 +77,22 @@ export default function ReferralPage() {
       }
 
       const referredUserIds = (referralUsers || [])
-        .map((item) => item.referred_user_id)
-        .filter(Boolean);
+  .map((item) => item.referred_user_id)
+  .filter(Boolean);
 
-      let activeList: ActiveReferral[] = [];
+console.log("REFERRAL USERS:", referralUsers);
+console.log("REFERRAL USER IDS:", referredUserIds);
+
+let activeList: ActiveReferral[] = [];
 
       if (referredUserIds.length > 0) {
         const { data: planData, error: planError } = await supabase
           .from("user_plans")
           .select("user_id, plan_name, amount")
           .in("user_id", referredUserIds);
-
+console.log("Referral IDs:", referredUserIds);
+console.log("Active Plans:", planData);
+console.log("Plan Error:", planError);
         if (planError) {
           console.log("Referral active plans error:", planError);
         }
