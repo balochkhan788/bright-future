@@ -12,6 +12,12 @@ type Reward = {
   created_at: string;
 };
 
+type ActiveReferral = {
+  user_id: string;
+  plan_name: string;
+  amount: number;
+};
+
 export default function ReferralPage() {
   const [referralCode, setReferralCode] = useState("");
   const [referralCount, setReferralCount] = useState(0);
@@ -19,6 +25,9 @@ export default function ReferralPage() {
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [levelCounts, setLevelCounts] = useState<number[]>(
     [0, 0, 0, 0, 0, 0, 0]
+  );
+  const [activeReferrals, setActiveReferrals] = useState<ActiveReferral[]>(
+    []
   );
 
   const [loading, setLoading] = useState(true);
@@ -52,42 +61,69 @@ export default function ReferralPage() {
 
       setReferralCode(code);
 
-      const { count, error: referralError } = await supabase
+      /*
+       * Get referred users.
+       */
+      const {
+        data: referralUsers,
+        error: referralUsersError,
+      } = await supabase
         .from("referrals")
-        .select("id", {
-          count: "exact",
-          head: true,
-        })
+        .select("referred_user_id")
         .eq("referrer_id", user.id);
 
-      if (referralError) {
-        console.log("Referral count error:", referralError);
+      if (referralUsersError) {
+        console.log("Referral users error:", referralUsersError);
       }
 
-      setReferralCount(count || 0);
+      const referredUserIds = (referralUsers || [])
+        .map((item) => item.referred_user_id)
+        .filter(Boolean);
 
-      const { data: levelData, error: levelError } = await supabase
-        .from("referrals")
-        .select("level")
-        .eq("referrer_id", user.id);
+      let activeList: ActiveReferral[] = [];
 
-      if (levelError) {
-        console.log("Referral level error:", levelError);
+      if (referredUserIds.length > 0) {
+        const { data: planData, error: planError } = await supabase
+          .from("user_plans")
+          .select("user_id, plan_name, amount")
+          .in("user_id", referredUserIds);
+
+        if (planError) {
+          console.log("Referral active plans error:", planError);
+        }
+
+        activeList = (planData || []).map((item) => ({
+          user_id: item.user_id,
+          plan_name: item.plan_name,
+          amount: Number(item.amount || 0),
+        }));
       }
 
+      setActiveReferrals(activeList);
+
+      /*
+       * Count active members according to their active plan.
+       */
       const counts = [0, 0, 0, 0, 0, 0, 0];
 
-      if (levelData) {
-        levelData.forEach((item) => {
-          const level = Number(item.level);
+      activeList.forEach((item) => {
+        const match = String(item.plan_name || "")
+          .trim()
+          .match(/^G-([1-7])$/i);
+
+        if (match) {
+          const level = Number(match[1]);
 
           if (level >= 1 && level <= 7) {
             counts[level - 1] += 1;
           }
-        });
-      }
+        }
+      });
 
       setLevelCounts(counts);
+
+      // Total Active Referrals
+      setReferralCount(activeList.length);
 
       const { data: rewardData, error: rewardError } = await supabase
         .from("referral_rewards")
@@ -240,7 +276,7 @@ export default function ReferralPage() {
 
           <div className="bg-white rounded-2xl shadow p-5">
             <p className="text-sm text-gray-500">
-              Total Referrals
+              Total Active Referrals
             </p>
 
             <p className="text-3xl font-bold mt-2">
@@ -282,34 +318,169 @@ export default function ReferralPage() {
 
         </div>
 
+        {/* Referral Levels + Members */}
+
         <div className="bg-white rounded-2xl shadow p-5">
 
           <h2 className="text-lg font-bold mb-4">
             Referral Levels
           </h2>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-4">
 
-            {levelCounts.map((total, index) => (
-              <div
-                key={index}
-                className="border rounded-xl p-4 bg-gray-50"
-              >
-                <p className="text-sm text-gray-500">
-                  G-{index + 1}
-                </p>
+            {levelCounts.map((total, index) => {
+              const planName = `G-${index + 1}`;
 
-                <p className="text-2xl font-bold mt-1">
-                  {total}
-                </p>
+              const members = activeReferrals.filter(
+                (member) =>
+                  String(member.plan_name || "")
+                    .trim()
+                    .toUpperCase() === planName
+              );
 
-                <p className="text-xs text-gray-500 mt-1">
-                  Referrals
-                </p>
-              </div>
-            ))}
+              return (
+                <div
+                  key={planName}
+                  className="border rounded-2xl overflow-hidden"
+                >
+
+                  <div className="bg-gray-50 p-4 flex justify-between items-center">
+
+                    <div>
+                      <p className="font-bold text-lg">
+                        {planName}
+                      </p>
+
+                      <p className="text-xs text-gray-500">
+                        Active Members
+                      </p>
+                    </div>
+
+                    <div className="bg-black text-white rounded-xl px-4 py-2 font-bold">
+                      {total}
+                    </div>
+
+                  </div>
+
+                  {members.length > 0 && (
+                    <div className="p-3 space-y-2">
+
+                      {members.map((member, memberIndex) => (
+                        <div
+                          key={`${member.user_id}-${memberIndex}`}
+                          className="border rounded-xl p-3 bg-white"
+                        >
+
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold">
+                              Member {memberIndex + 1}
+                            </span>
+
+                            <span className="font-bold">
+                              {member.plan_name}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-gray-500 mt-2 break-all">
+                            User ID: {member.user_id}
+                          </p>
+
+                          <div className="flex justify-between text-sm mt-2">
+                            <span className="text-gray-500">
+                              Plan Amount
+                            </span>
+
+                            <span className="font-semibold">
+                              Rs{" "}
+                              {Number(
+                                member.amount || 0
+                              ).toLocaleString()}
+                            </span>
+                          </div>
+
+                        </div>
+                      ))}
+
+                    </div>
+                  )}
+
+                  {members.length === 0 && (
+                    <div className="p-4">
+                      <p className="text-xs text-gray-400">
+                        Is plan ka koi active referred member nahi hai.
+                      </p>
+                    </div>
+                  )}
+
+                </div>
+              );
+            })}
 
           </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow p-5">
+
+          <h2 className="text-lg font-bold mb-4">
+            Active Referral Members
+          </h2>
+
+          {activeReferrals.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              Abhi kisi referred member ne plan active nahi kiya.
+            </p>
+          ) : (
+            <div className="space-y-3">
+
+              {activeReferrals.map((member, index) => (
+                <div
+                  key={`${member.user_id}-${index}`}
+                  className="border rounded-xl p-4 bg-gray-50"
+                >
+
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold">
+                      Member {index + 1}
+                    </span>
+
+                    <span className="font-bold">
+                      {member.plan_name}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-gray-500 mt-2 break-all">
+                    User ID: {member.user_id}
+                  </p>
+
+                  <div className="flex justify-between text-sm mt-2">
+                    <span className="text-gray-500">
+                      Active Plan
+                    </span>
+
+                    <span className="font-semibold">
+                      {member.plan_name}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-sm mt-1">
+                    <span className="text-gray-500">
+                      Plan Amount
+                    </span>
+
+                    <span className="font-semibold">
+                      Rs{" "}
+                      {Number(
+                        member.amount || 0
+                      ).toLocaleString()}
+                    </span>
+                  </div>
+
+                </div>
+              ))}
+
+            </div>
+          )}
+
         </div>
 
         <div className="bg-white rounded-2xl shadow p-5">
