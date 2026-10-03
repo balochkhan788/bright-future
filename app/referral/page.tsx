@@ -85,24 +85,39 @@ console.log("REFERRAL USER IDS:", referredUserIds);
 
 let activeList: ActiveReferral[] = [];
 
-      if (referredUserIds.length > 0) {
-        const { data: planData, error: planError } = await supabase
-          .from("user_plans")
-          .select("user_id, plan_name, amount")
-          .in("user_id", referredUserIds);
-console.log("Referral IDs:", referredUserIds);
-console.log("Active Plans:", planData);
-console.log("Plan Error:", planError);
-        if (planError) {
-          console.log("Referral active plans error:", planError);
-        }
+     if (referredUserIds.length > 0) {
+  const { data: planData, error: planError } = await supabase
+    .from("user_plans")
+    .select("user_id, plan_name, amount, status, created_at")
+    .in("user_id", referredUserIds)
+    .eq("status", "active")
+    .order("created_at", { ascending: false });
 
-        activeList = (planData || []).map((item) => ({
-          user_id: item.user_id,
-          plan_name: item.plan_name,
-          amount: Number(item.amount || 0),
-        }));
+  console.log("Referral IDs:", referredUserIds);
+  console.log("Active Plans:", planData);
+  console.log("Plan Error:", planError);
+
+  if (planError) {
+    console.log("Referral active plans error:", planError);
+  }
+
+  const seenUsers = new Set<string>();
+
+  activeList = (planData || [])
+    .filter((item) => {
+      if (!item.user_id || seenUsers.has(item.user_id)) {
+        return false;
       }
+
+      seenUsers.add(item.user_id);
+      return true;
+    })
+    .map((item) => ({
+      user_id: item.user_id,
+      plan_name: item.plan_name,
+      amount: Number(item.amount || 0),
+    }));
+}
 
       setActiveReferrals(activeList);
 
