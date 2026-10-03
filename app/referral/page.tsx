@@ -94,8 +94,9 @@ let activeList: ActiveReferral[] = [];
     .order("created_at", { ascending: false });
 
   console.log("Referral IDs:", referredUserIds);
-  console.log("Active Plans:", planData);
-  console.log("Plan Error:", planError);
+console.log("Active Plans:", planData);
+console.log("ACTIVE PLAN DETAILS:", JSON.stringify(planData, null, 2));
+console.log("Plan Error:", planError);
 
   if (planError) {
     console.log("Referral active plans error:", planError);
