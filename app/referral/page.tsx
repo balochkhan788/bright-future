@@ -17,7 +17,13 @@ type ActiveReferral = {
   plan_name: string;
   amount: number;
 };
-
+type NetworkReferral = {
+  level: number;
+  referred_user_id: string;
+  plan_name: string | null;
+  amount: number | null;
+  plan_status: string | null;
+};
 export default function ReferralPage() {
   const [referralCode, setReferralCode] = useState("");
   const [referralCount, setReferralCount] = useState(0);
@@ -27,8 +33,12 @@ export default function ReferralPage() {
     [0, 0, 0, 0, 0, 0, 0]
   );
   const [activeReferrals, setActiveReferrals] = useState<ActiveReferral[]>(
-    []
-  );
+  []
+);
+
+const [networkReferrals, setNetworkReferrals] = useState<NetworkReferral[]>(
+  []
+);
 
   const [loading, setLoading] = useState(true);
   const [requestingReward, setRequestingReward] = useState(false);
@@ -60,7 +70,15 @@ export default function ReferralPage() {
         user.id.replace(/-/g, "").substring(0, 8).toUpperCase();
 
       setReferralCode(code);
+const { data: networkData, error: networkError } =
+  await supabase.rpc("get_my_referral_network");
 
+if (networkError) {
+  console.log("Referral network error:", networkError);
+} else {
+  console.log("A-B-C NETWORK:", networkData);
+  setNetworkReferrals((networkData || []) as NetworkReferral[]);
+}
       /*
        * Get referred users.
        */
@@ -318,7 +336,110 @@ console.log("Plan Error:", planError);
         </div>
 
         <div className="bg-white rounded-2xl shadow p-5">
+<div className="bg-white rounded-2xl shadow p-5">
 
+  <h2 className="text-lg font-bold mb-4">
+    My Referral Network
+  </h2>
+
+  {[1, 2, 3].map((level) => {
+    const members = networkReferrals.filter(
+      (member) =>
+        member.level === level &&
+        member.plan_status === "active"
+    );
+
+    const levelName =
+      level === 1 ? "A" :
+      level === 2 ? "B" :
+      "C";
+
+    return (
+      <div
+        key={level}
+        className="border rounded-2xl overflow-hidden mb-4"
+      >
+
+        <div className="bg-gray-50 p-4 flex justify-between items-center">
+
+          <div>
+            <p className="font-bold text-lg">
+              Level {level} — {levelName}
+            </p>
+
+            <p className="text-xs text-gray-500">
+              Active Members
+            </p>
+          </div>
+
+          <div className="bg-black text-white rounded-xl px-4 py-2 font-bold">
+            {members.length}
+          </div>
+
+        </div>
+
+        {members.length > 0 ? (
+          <div className="p-3 space-y-2">
+
+            {members.map((member, index) => (
+              <div
+                key={`${member.referred_user_id}-${index}`}
+                className="border rounded-xl p-3 bg-white"
+              >
+
+                <div className="flex justify-between items-center">
+
+                  <span className="font-semibold">
+                    {levelName} Member {index + 1}
+                  </span>
+
+                  <span className="font-bold">
+                    {member.plan_name}
+                  </span>
+
+                </div>
+
+                <p className="text-xs text-gray-500 mt-2 break-all">
+                  User ID: {member.referred_user_id}
+                </p>
+
+                <div className="flex justify-between text-sm mt-2">
+                  <span className="text-gray-500">
+                    Active Plan
+                  </span>
+
+                  <span className="font-semibold">
+                    {member.plan_name}
+                  </span>
+                </div>
+
+                <div className="flex justify-between text-sm mt-1">
+                  <span className="text-gray-500">
+                    Plan Amount
+                  </span>
+
+                  <span className="font-semibold">
+                    Rs {Number(member.amount || 0).toLocaleString()}
+                  </span>
+                </div>
+
+              </div>
+            ))}
+
+          </div>
+        ) : (
+          <div className="p-4">
+            <p className="text-xs text-gray-400">
+              Abhi koi active member nahi hai.
+            </p>
+          </div>
+        )}
+
+      </div>
+    );
+  })}
+
+</div>
           <h2 className="text-lg font-bold mb-3">
             Promotional Reward
           </h2>
