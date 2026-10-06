@@ -72,15 +72,14 @@ export default function RulesPage() {
               </li>
 
               <li>
-                Only the following withdrawal amounts will be eligible for
-                approval:
-                <span className="font-bold text-white">
-                  {" "}
-                  Rs 1,000, Rs 1,500, Rs 2,500, Rs 3,500, Rs 5,000,
-                  Rs 7,000, Rs 10,000, Rs 12,000, Rs 15,000,
-                  Rs 20,000 and Rs 30,000.
-                </span>
-              </li>
+  Only the following withdrawal amounts will be eligible for
+  approval:
+  <span className="font-bold text-white">
+    {" "}
+    Rs 1,000, Rs 4,000, Rs 8,000, Rs 15,000, Rs 22,000,
+    Rs 40,000, Rs 80,000 and Rs 110,000.
+  </span>
+</li>
 
               <li>
                 Withdrawal requests below Rs 1,000 will be rejected and will

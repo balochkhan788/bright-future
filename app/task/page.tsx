@@ -161,10 +161,25 @@ export default function TaskPage() {
 
     return formatter.format(new Date());
   }
+function isSundayInPakistan() {
+  const day = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Karachi",
+    weekday: "short",
+  }).format(new Date());
 
+  return day === "Sun";
+}
   async function loadTasks() {
     setMessage("");
-
+if (isSundayInPakistan()) {
+    setPlan(null);
+    setTasks([]);
+    setLoading(false);
+    setMessage(
+      "Sunday — Daily Tasks are OFF today. Tasks will resume on Monday."
+    );
+    return;
+  }
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -270,24 +285,34 @@ export default function TaskPage() {
     setLoading(false);
   }
 async function completeTask(taskNumber: number) {
+  if (isSundayInPakistan()) {
+    setMessage(
+      "Sunday — Daily Tasks are OFF today. Tasks will resume on Monday."
+    );
+    return;
+  }
+
   const voice = new SpeechSynthesisUtterance(
-  "Get Task and Start Earnings — Bright Future."
-);
-voice.lang = "en-US";
-voice.rate = 0.9;
-voice.volume = 1.0;
-window.speechSynthesis.cancel();
-window.speechSynthesis.speak(voice);
-    if (workingTask !== null) return;
+    "Get Task and Start Earnings — Bright Future."
+  );
 
-    setMessage("");
+  voice.lang = "en-US";
+  voice.rate = 0.9;
+  voice.volume = 1.0;
 
-    if (!plan) {
-      setMessage(
-        "No Plan Active. Please activate a plan first, then your task earnings will start."
-      );
-      return;
-    }
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(voice);
+
+  if (workingTask !== null) return;
+
+  setMessage("");
+
+  if (!plan) {
+    setMessage(
+      "No Plan Active. Please activate a plan first, then your task earnings will start."
+    );
+    return;
+  }
 
     const selectedTask = tasks.find(
       (task) => task.task_number === taskNumber
