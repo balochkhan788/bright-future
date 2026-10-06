@@ -137,31 +137,25 @@ export default function Withdraw() {
             className="mt-8"
           >
 
-            {/* AMOUNT */}
+           {/* AMOUNT */}
 
-            <label className="text-sm text-slate-300">
-              Withdrawal Amount
-            </label>
+<label className="text-sm text-slate-300">
+  Withdrawal Amount
+</label>
 
-            <input
-  type="number"
-  min="1"
-  placeholder="Enter withdrawal amount"
-  value={amount}
-  onChange={(e) =>
-    setAmount(e.target.value)
-  }
-  className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none focus:border-yellow-400"
-/>
-<div className="mt-3 grid grid-cols-3 gap-2">
-  {[1000, 2000, 3000, 5000, 7000, 10000, 15000, 20000, 30000].map(
+<div className="mt-3 grid grid-cols-2 gap-3">
+  {[1000, 4000, 8000, 15000, 22000, 40000, 80000, 110000].map(
     (value) => (
       <button
         key={value}
         type="button"
         onClick={() => setAmount(String(value))}
         disabled={loading}
-        className="rounded-lg border border-white/10 bg-slate-900 px-3 py-3 text-sm font-bold text-white hover:border-yellow-400 hover:text-yellow-400 disabled:opacity-50"
+        className={`rounded-lg border px-4 py-3 text-sm font-bold transition ${
+          amount === String(value)
+            ? "border-yellow-400 bg-yellow-400 text-slate-950"
+            : "border-white/10 bg-slate-900 text-white hover:border-yellow-400 hover:text-yellow-400"
+        } disabled:opacity-50`}
       >
         Rs. {value.toLocaleString()}
       </button>
