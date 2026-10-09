@@ -23,8 +23,6 @@ const colors = [
   "#8b5cf6",
 ];
 
-const eligiblePlans = ["G-3", "G-4", "G-5", "G-6", "G-7"];
-
 export default function SpinWheelPage() {
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -39,35 +37,60 @@ export default function SpinWheelPage() {
   }, []);
 
   async function checkPlan() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!user) {
-      window.location.href = "/login";
-      return;
-    }
+      if (!user) {
+        window.location.href = "/login";
+        return;
+      }
 
-    const { data, error } = await supabase
-      .from("user_plans")
-      .select("plan_name, status, created_at")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      const { data, error } = await supabase
+        .from("user_plans")
+        .select("plan_name, status, created_at")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (error || !data) {
+      if (error || !data) {
+        setAllowed(false);
+        setPlanName("");
+        return;
+      }
+
+      const currentPlan = String(data.plan_name || "")
+        .trim()
+        .toUpperCase();
+
+      setPlanName(currentPlan);
+
+      if (currentPlan === "G-1" || currentPlan === "G-2") {
+        const { data: credit, error: creditError } = await supabase
+          .from("spin_credits")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("used", false)
+          .not("referral_id", "is", null)
+          .limit(1)
+          .maybeSingle();
+
+        setAllowed(!creditError && !!credit);
+      } else {
+        setAllowed(
+          ["G-3", "G-4", "G-5", "G-6", "G-7"].includes(currentPlan)
+        );
+      }
+    } catch (error) {
+      console.error("Error checking Spin Wheel eligibility:", error);
       setAllowed(false);
+      setPlanName("");
+    } finally {
       setCheckingPlan(false);
-      return;
     }
-
-    const currentPlan = String(data.plan_name).trim().toUpperCase();
-
-    setPlanName(currentPlan);
-    setAllowed(eligiblePlans.includes(currentPlan));
-    setCheckingPlan(false);
   }
 
   async function spin() {
@@ -85,6 +108,12 @@ export default function SpinWheelPage() {
       return;
     }
 
+    if (!data || data.index == null || !data.reward) {
+      setSpinning(false);
+      setMessage("Unable to complete spin. Please try again.");
+      return;
+    }
+
     const index = Number(data.index);
     const reward = data.reward;
 
@@ -99,8 +128,7 @@ export default function SpinWheelPage() {
     }, 4000);
   }
 
-  const wheelTransform =
-    "rotate(" + rotation + "deg)";
+  const wheelTransform = "rotate(" + rotation + "deg)";
 
   const wheelBackground =
     "conic-gradient(" +
@@ -119,7 +147,6 @@ export default function SpinWheelPage() {
           <h1 className="text-center text-3xl font-bold">
             Bright Future
           </h1>
-
           <p className="mt-10 text-center text-slate-400">
             Checking your plan...
           </p>
@@ -142,7 +169,7 @@ export default function SpinWheelPage() {
 
           <div className="mt-10 rounded-2xl border border-yellow-400/30 bg-yellow-400/10 p-6 text-center">
             <p className="text-xl font-bold text-yellow-300">
-              Spin Wheel Available for G-3 to G-7
+              Spin Wheel Available for G-1 to G-7
             </p>
 
             <p className="mt-3 text-slate-300">
@@ -150,7 +177,8 @@ export default function SpinWheelPage() {
             </p>
 
             <p className="mt-3 text-sm text-slate-400">
-              Upgrade to an eligible plan to use Spin Wheel.
+              G-1 and G-2 require an unused referral spin credit.
+              G-3 to G-7 require an active plan.
             </p>
           </div>
 
@@ -167,9 +195,7 @@ export default function SpinWheelPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white">
-
       <div className="mx-auto max-w-md">
-
         <h1 className="text-center text-3xl font-bold">
           Bright Future
         </h1>
@@ -183,7 +209,6 @@ export default function SpinWheelPage() {
         </p>
 
         <div className="relative mx-auto mt-10 h-80 w-80">
-
           {/* Pointer */}
           <div className="absolute left-1/2 top-[-8px] z-30 -translate-x-1/2">
             <div
@@ -207,40 +232,30 @@ export default function SpinWheelPage() {
               background: wheelBackground,
             }}
           >
-
-            {/* Amounts inside wheel */}
             {rewards.map(function (amount, index) {
-
               const angle =
                 index * (360 / rewards.length) +
-                (180 / rewards.length);
+                180 / rewards.length;
 
               const amountTransform =
                 "translate(-50%, -50%) " +
                 "rotate(" + angle + "deg) " +
                 "translateY(-92px)";
 
-              const textTransform =
-                "rotate(-" + angle + "deg)";
+              const textTransform = "rotate(-" + angle + "deg)";
 
               return (
                 <div
                   key={amount}
                   className="absolute left-1/2 top-1/2"
-                  style={{
-                    transform: amountTransform,
-                  }}
+                  style={{ transform: amountTransform }}
                 >
-
                   <div
                     className="flex h-10 w-20 items-center justify-center rounded-lg bg-black/20 text-center text-xs font-extrabold text-white"
-                    style={{
-                      transform: textTransform,
-                    }}
+                    style={{ transform: textTransform }}
                   >
                     {amount}
                   </div>
-
                 </div>
               );
             })}
@@ -249,7 +264,6 @@ export default function SpinWheelPage() {
             <div className="absolute left-1/2 top-1/2 z-20 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-white bg-slate-950 text-sm font-bold shadow-xl">
               SPIN
             </div>
-
           </div>
         </div>
 
@@ -272,7 +286,6 @@ export default function SpinWheelPage() {
         {/* Winner */}
         {winner && (
           <div className="mt-6 rounded-2xl border border-green-400/30 bg-green-400/10 p-5 text-center">
-
             <p className="text-sm text-slate-400">
               Congratulations!
             </p>
@@ -284,7 +297,6 @@ export default function SpinWheelPage() {
             <p className="mt-2 text-sm text-green-300">
               Reward added to your available balance.
             </p>
-
           </div>
         )}
 
@@ -294,7 +306,6 @@ export default function SpinWheelPage() {
         >
           ← Back to Dashboard
         </a>
-
       </div>
     </main>
   );
